@@ -201,7 +201,6 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
-        .insert(Velocity::default())
         .insert(Transform::from_xyz(0., -100., 0.));
 
     // Make sure we have a socket for later systems
