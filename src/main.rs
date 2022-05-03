@@ -142,8 +142,9 @@ pub fn keyboard_input(
     mut commands: Commands,
     keys: Res<Input<KeyCode>>,
     task_pool: Res<IoTaskPool>,
+    socket_res: Res<Option<WebRtcSocket>>,
 ) {
-    if keys.just_pressed(KeyCode::C) {
+    if keys.just_pressed(KeyCode::C) && socket_res.is_none() {
         let lobby_id = "testing-stuff?next=2";
         let room_url = format!("{MATCHBOX_ADDR}/{lobby_id}");
         let (socket, message_loop) = WebRtcSocket::new(room_url);
