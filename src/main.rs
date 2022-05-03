@@ -199,7 +199,11 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
     commands.insert_resource::<Option<WebRtcSocket>>(None);
 }
 
-pub fn input(keyboard_input: Res<Input<KeyCode>>) -> GGRSInput {
+pub fn input(
+    _handle: In<PlayerHandle>,
+    keyboard_input: Res<Input<KeyCode>>,
+    _local_handles: Res<LocalHandles>,
+) -> GGRSInput {
     let mut inp: u16 = 0;
 
     if keyboard_input.pressed(KeyCode::W) {
@@ -214,7 +218,7 @@ pub fn input(keyboard_input: Res<Input<KeyCode>>) -> GGRSInput {
     if keyboard_input.pressed(KeyCode::D) {
         inp |= INPUT_RIGHT;
     }
-    if keyboard_input.just_pressed(KeyCode::Space) {
+    if keyboard_input.just_pressed(KeyCode::Back) {
         inp |= INPUT_JUMP;
     }
 
