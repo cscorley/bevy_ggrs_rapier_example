@@ -115,11 +115,22 @@ fn main() {
         )
         .with_system(systems::writeback_rigid_bodies.after(systems::step_simulation::<NoUserData>));
 
+    // things tried:
+    // - physics pipeline at start
+    // - physics pipeline at start and after appling inputs (2 stages with same systems)
+    // - adding to velocity #[reflect(Component, PartialEq)]
+    // - checksum, no checksum
+    // things tried previously not yet replicated here:
+    // - resetting physics context every frame update
+    // things not yet tried:
+    // - bespoke velocity component
+    // - occasionally syncing the components over network
+    // - adding any other internal physics component for tracking
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
         .with_input_system(input)
         .register_rollback_type::<Transform>()
-        .register_rollback_type::<Velocity>() // TODO: does this need #[reflect(Component, PartialEq)]?
+        .register_rollback_type::<Velocity>()
         .register_rollback_type::<FrameCount>()
         .register_rollback_type::<checksum::Checksum>() // Required to hash Transform/Velocity
         .with_rollback_schedule(
