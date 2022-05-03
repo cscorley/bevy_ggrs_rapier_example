@@ -129,7 +129,6 @@ fn main() {
                     ROLLBACK_SYSTEMS,
                     SystemStage::parallel()
                         .with_system(apply_inputs)
-                        .with_system(update_velocity.after(apply_inputs))
                         .with_system(increase_frame_count),
                 )
                 .with_stage_after(ROLLBACK_SYSTEMS, PHYSICS_SYSTEMS, physics_pipeline),
@@ -257,21 +256,21 @@ pub fn increase_frame_count(mut frame_count: ResMut<FrameCount>) {
 }
 
 pub fn apply_inputs(
-    mut query: Query<(&mut PlayerControls, &Player)>,
+    mut query: Query<(&mut Velocity, &Player)>,
     inputs: Res<Vec<(GGRSInput, InputStatus)>>,
 ) {
     if query.is_empty() {
         // log::info!("apply_inputs empty query");
     }
 
-    for (mut c, p) in query.iter_mut() {
+    for (mut v, p) in query.iter_mut() {
         let input = match inputs[p.handle].1 {
             InputStatus::Confirmed => inputs[p.handle].0.inp,
             InputStatus::Predicted => inputs[p.handle].0.inp,
             InputStatus::Disconnected => 0, // disconnected players do nothing
         };
 
-        c.horizontal = if input & INPUT_LEFT != 0 && input & INPUT_RIGHT == 0 {
+        let horizontal = if input & INPUT_LEFT != 0 && input & INPUT_RIGHT == 0 {
             -1.
         } else if input & INPUT_LEFT == 0 && input & INPUT_RIGHT != 0 {
             1.
@@ -279,7 +278,7 @@ pub fn apply_inputs(
             0.
         };
 
-        c.vertical = if input & INPUT_JUMP != 0 {
+        let vertical = if input & INPUT_JUMP != 0 {
             if input & INPUT_DOWN != 0 && input & INPUT_UP == 0 {
                 -1.
             } else {
@@ -288,18 +287,15 @@ pub fn apply_inputs(
         } else {
             0.
         };
-    }
-}
 
-pub fn update_velocity(mut query: Query<(&mut Velocity, &PlayerControls)>) {
-    for (mut v, c) in query.iter_mut() {
-        if c.horizontal != 0. {
-            v.linvel.x += c.horizontal * 2.0;
+        if horizontal != 0. {
+            v.linvel.x += horizontal * 2.0;
         } else {
             v.linvel.x = 0.;
         }
-        if c.vertical != 0. {
-            v.linvel.y = c.vertical * 100.0;
+
+        if vertical != 0. {
+            v.linvel.y = vertical * 100.0;
         }
     }
 }
