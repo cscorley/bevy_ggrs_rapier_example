@@ -4,11 +4,11 @@ use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
 use bevy_rapier2d::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use ggrs::{Config, PlayerType, SessionBuilder};
-use ggrs::{InputStatus, P2PSession, PlayerHandle};
+use ggrs::{InputStatus, PlayerHandle};
+use matchbox_socket::WebRtcSocket;
 
 #[cfg(feature = "debug")]
 use bevy_inspector_egui::WorldInspectorPlugin;
-use matchbox_socket::WebRtcSocket;
 
 const NUM_PLAYERS: usize = 2;
 const FPS: usize = 60;
@@ -42,8 +42,8 @@ pub struct Input {
 
 #[derive(Default, Reflect, Component, Clone)]
 pub struct PlayerControls {
-    pub accel: f32,
-    pub steer: f32,
+    pub vertical: f32,
+    pub horizontal: f32,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
@@ -67,6 +67,7 @@ impl Config for GGRSConfig {
 fn main() {
     let mut app = App::new();
 
+    // Something smaller so we can put these side by side
     let window_info = WindowDescriptor {
         title: "Example".into(),
         width: 640.0,
@@ -91,6 +92,7 @@ fn main() {
         .insert_resource(Events::<CollisionEvent>::default())
         .insert_resource(PhysicsHooksWithQueryResource::<NoUserData>(Box::new(())));
 
+    // Would it be better to update our velocity components here?
     let physics_pipeline = SystemStage::parallel()
         .with_system(systems::init_async_shapes)
         .with_system(systems::apply_scale.after(systems::init_async_shapes))
@@ -262,7 +264,7 @@ pub fn apply_inputs(
             InputStatus::Disconnected => 0, // disconnected players do nothing
         };
 
-        c.steer = if input & INPUT_LEFT != 0 && input & INPUT_RIGHT == 0 {
+        c.horizontal = if input & INPUT_LEFT != 0 && input & INPUT_RIGHT == 0 {
             -1.
         } else if input & INPUT_LEFT == 0 && input & INPUT_RIGHT != 0 {
             1.
@@ -270,7 +272,7 @@ pub fn apply_inputs(
             0.
         };
 
-        c.accel = if input & INPUT_JUMP != 0 {
+        c.vertical = if input & INPUT_JUMP != 0 {
             if input & INPUT_DOWN != 0 && input & INPUT_UP == 0 {
                 -1.
             } else {
@@ -284,13 +286,13 @@ pub fn apply_inputs(
 
 pub fn update_velocity(mut query: Query<(&mut Velocity, &PlayerControls)>) {
     for (mut v, c) in query.iter_mut() {
-        if c.steer != 0. {
-            v.linvel.x += c.steer * 2.0;
+        if c.horizontal != 0. {
+            v.linvel.x += c.horizontal * 2.0;
         } else {
             v.linvel.x = 0.;
         }
-        if c.accel != 0. {
-            v.linvel.y = c.accel * 100.0;
+        if c.vertical != 0. {
+            v.linvel.y = c.vertical * 100.0;
         }
     }
 }
