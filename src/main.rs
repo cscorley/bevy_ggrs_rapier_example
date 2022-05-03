@@ -199,45 +199,23 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
     commands.insert_resource::<Option<WebRtcSocket>>(None);
 }
 
-pub fn input(
-    handle: In<PlayerHandle>,
-    keyboard_input: Res<Input<KeyCode>>,
-    local_handles: Res<LocalHandles>,
-) -> GGRSInput {
+pub fn input(keyboard_input: Res<Input<KeyCode>>) -> GGRSInput {
     let mut inp: u16 = 0;
 
-    if handle.0 == local_handles.handles[0] {
-        if keyboard_input.pressed(KeyCode::W) {
-            inp |= INPUT_UP;
-        }
-        if keyboard_input.pressed(KeyCode::A) {
-            inp |= INPUT_LEFT;
-        }
-        if keyboard_input.pressed(KeyCode::S) {
-            inp |= INPUT_DOWN;
-        }
-        if keyboard_input.pressed(KeyCode::D) {
-            inp |= INPUT_RIGHT;
-        }
-        if keyboard_input.just_pressed(KeyCode::Back) {
-            inp |= INPUT_JUMP;
-        }
-    } else {
-        if keyboard_input.pressed(KeyCode::Up) {
-            inp |= INPUT_UP;
-        }
-        if keyboard_input.pressed(KeyCode::Left) {
-            inp |= INPUT_LEFT;
-        }
-        if keyboard_input.pressed(KeyCode::Down) {
-            inp |= INPUT_DOWN;
-        }
-        if keyboard_input.pressed(KeyCode::Right) {
-            inp |= INPUT_RIGHT;
-        }
-        if keyboard_input.just_pressed(KeyCode::Space) {
-            inp |= INPUT_JUMP;
-        }
+    if keyboard_input.pressed(KeyCode::W) {
+        inp |= INPUT_UP;
+    }
+    if keyboard_input.pressed(KeyCode::A) {
+        inp |= INPUT_LEFT;
+    }
+    if keyboard_input.pressed(KeyCode::S) {
+        inp |= INPUT_DOWN;
+    }
+    if keyboard_input.pressed(KeyCode::D) {
+        inp |= INPUT_RIGHT;
+    }
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        inp |= INPUT_JUMP;
     }
 
     GGRSInput { inp }
