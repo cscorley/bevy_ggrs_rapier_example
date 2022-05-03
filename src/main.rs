@@ -39,12 +39,6 @@ pub struct GGRSInput {
     pub inp: u16,
 }
 
-#[derive(Default, Reflect, Component, Clone)]
-pub struct PlayerControls {
-    pub vertical: f32,
-    pub horizontal: f32,
-}
-
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
 pub struct Player {
     pub handle: usize,
@@ -172,7 +166,6 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .spawn()
         .insert(Name::new("Player 1"))
         .insert(Player { handle: 0 })
-        .insert(PlayerControls::default())
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::cuboid(4., 4.))
         .insert(LockedAxes::ROTATION_LOCKED)
@@ -185,7 +178,6 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .spawn()
         .insert(Name::new("Player 2"))
         .insert(Player { handle: 1 })
-        .insert(PlayerControls::default())
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::cuboid(4., 4.))
         .insert(LockedAxes::ROTATION_LOCKED)
