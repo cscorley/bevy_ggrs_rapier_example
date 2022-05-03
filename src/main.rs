@@ -36,7 +36,7 @@ pub struct ConnectData {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
-pub struct Input {
+pub struct GGRSInput {
     pub inp: u16,
 }
 
@@ -59,7 +59,7 @@ pub struct FrameCount {
 #[derive(Debug)]
 pub struct GGRSConfig;
 impl Config for GGRSConfig {
-    type Input = Input;
+    type Input = GGRSInput;
     type State = u16;
     type Address = String;
 }
@@ -79,6 +79,8 @@ fn main() {
     app.insert_resource(window_info)
         .add_plugins(DefaultPlugins)
         .add_startup_system(startup)
+        .add_system(keyboard_input)
+        .add_system(bevy::input::system::exit_on_esc_system)
         .add_system(update_matchbox_socket);
 
     #[cfg(feature = "debug")]
@@ -139,11 +141,21 @@ fn main() {
     app.run();
 }
 
-pub fn startup(
+pub fn keyboard_input(
     mut commands: Commands,
-    mut rip: ResMut<RollbackIdProvider>,
+    keys: Res<Input<KeyCode>>,
     task_pool: Res<IoTaskPool>,
 ) {
+    if keys.just_pressed(KeyCode::C) {
+        let lobby_id = "testing-stuff?next=2";
+        let room_url = format!("{MATCHBOX_ADDR}/{lobby_id}");
+        let (socket, message_loop) = WebRtcSocket::new(room_url);
+        task_pool.spawn(message_loop).detach();
+        commands.insert_resource(Some(socket));
+    }
+}
+
+pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
     commands.insert_resource(FrameCount::default());
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
@@ -193,19 +205,13 @@ pub fn startup(
         .insert(RigidBody::Fixed)
         .insert(Velocity::default())
         .insert(Transform::from_xyz(0., -100., 0.));
-
-    let lobby_id = "testing-stuff?next=2";
-    let room_url = format!("{MATCHBOX_ADDR}/{lobby_id}");
-    let (socket, message_loop) = WebRtcSocket::new(room_url);
-    task_pool.spawn(message_loop).detach();
-    commands.insert_resource(Some(socket));
 }
 
 pub fn input(
     handle: In<PlayerHandle>,
-    keyboard_input: Res<bevy::input::Input<KeyCode>>,
+    keyboard_input: Res<Input<KeyCode>>,
     local_handles: Res<LocalHandles>,
-) -> Input {
+) -> GGRSInput {
     let mut inp: u16 = 0;
 
     if handle.0 == local_handles.handles[0] {
@@ -242,7 +248,7 @@ pub fn input(
         }
     }
 
-    Input { inp }
+    GGRSInput { inp }
 }
 
 pub fn increase_frame_count(mut frame_count: ResMut<FrameCount>) {
@@ -251,7 +257,7 @@ pub fn increase_frame_count(mut frame_count: ResMut<FrameCount>) {
 
 pub fn apply_inputs(
     mut query: Query<(&mut PlayerControls, &Player)>,
-    inputs: Res<Vec<(Input, InputStatus)>>,
+    inputs: Res<Vec<(GGRSInput, InputStatus)>>,
 ) {
     if query.is_empty() {
         // log::info!("apply_inputs empty query");
