@@ -259,10 +259,6 @@ pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
     inputs: Res<Vec<(GGRSInput, InputStatus)>>,
 ) {
-    if query.is_empty() {
-        // log::info!("apply_inputs empty query");
-    }
-
     for (mut v, p) in query.iter_mut() {
         let input = match inputs[p.handle].1 {
             InputStatus::Confirmed => inputs[p.handle].0.inp,
