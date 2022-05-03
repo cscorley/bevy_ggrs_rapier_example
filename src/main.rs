@@ -1,3 +1,5 @@
+mod checksum;
+
 use bevy::tasks::IoTaskPool;
 use bevy::{ecs::event::Events, prelude::*};
 use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
@@ -13,6 +15,7 @@ const NUM_PLAYERS: usize = 2;
 const FPS: usize = 60;
 const ROLLBACK_SYSTEMS: &str = "rollback_systems";
 const PHYSICS_SYSTEMS: &str = "physics_systems";
+const CHECKSUM_SYSTEMS: &str = "checksum_systems";
 const MAX_PREDICTION: usize = 12;
 const INPUT_DELAY: usize = 2;
 const CHECK_DISTANCE: usize = 2;
@@ -44,11 +47,12 @@ pub struct Player {
     pub handle: usize,
 }
 
-#[derive(Default, Reflect, Hash, Component)]
-#[reflect(Hash)]
+#[derive(Default, Reflect, Hash, Component, PartialEq)]
+#[reflect(Hash, Component, PartialEq)]
 pub struct FrameCount {
     pub frame: u32,
 }
+
 #[derive(Debug)]
 pub struct GGRSConfig;
 impl Config for GGRSConfig {
@@ -115,8 +119,9 @@ fn main() {
         .with_update_frequency(FPS)
         .with_input_system(input)
         .register_rollback_type::<Transform>()
-        .register_rollback_type::<Velocity>()
+        .register_rollback_type::<Velocity>() // TODO: does this need #[reflect(Component, PartialEq)]?
         .register_rollback_type::<FrameCount>()
+        .register_rollback_type::<checksum::Checksum>() // Required to hash Transform/Velocity
         .with_rollback_schedule(
             Schedule::default()
                 .with_stage(
@@ -125,7 +130,12 @@ fn main() {
                         .with_system(apply_inputs)
                         .with_system(increase_frame_count),
                 )
-                .with_stage_after(ROLLBACK_SYSTEMS, PHYSICS_SYSTEMS, physics_pipeline),
+                .with_stage_after(ROLLBACK_SYSTEMS, PHYSICS_SYSTEMS, physics_pipeline)
+                .with_stage_after(
+                    PHYSICS_SYSTEMS,
+                    CHECKSUM_SYSTEMS,
+                    SystemStage::parallel().with_system(checksum::checksum),
+                ),
         )
         .build(&mut app);
 
