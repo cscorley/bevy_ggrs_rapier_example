@@ -4,12 +4,8 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
-[features]
-default = []
-debug = ["bevy-inspector-egui"]
-
 [dependencies]
-bevy-inspector-egui = { version = "0.10.0", optional = true }
+bevy-inspector-egui = { version = "0.10.0" }
 bevy_asset_loader = "0.10.0"
 bevy = "0.7.0"
 bytemuck = {version="1.7.3", features= ["derive"]}

@@ -12,9 +12,7 @@
         "args": [
           "build",
           "--bin=bevy_ggrs_rapier_example",
-          "--package=bevy_ggrs_rapier_example",
-          "--features",
-          "debug"
+          "--package=bevy_ggrs_rapier_example"
         ],
         "filter": {
           "name": "bevy_ggrs_rapier_example",

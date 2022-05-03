@@ -7,7 +7,6 @@ use ggrs::{Config, PlayerType, SessionBuilder};
 use ggrs::{InputStatus, PlayerHandle};
 use matchbox_socket::WebRtcSocket;
 
-#[cfg(feature = "debug")]
 use bevy_inspector_egui::WorldInspectorPlugin;
 
 const NUM_PLAYERS: usize = 2;
@@ -83,12 +82,11 @@ fn main() {
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_system(update_matchbox_socket);
 
-    #[cfg(feature = "debug")]
-    app.add_plugin(WorldInspectorPlugin::new());
+    app.add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(WorldInspectorPlugin::new());
 
     // TODO: cannot set scaling stuff
-    app.add_plugin(RapierDebugRenderPlugin::default())
-        .insert_resource(RapierConfiguration::default())
+    app.insert_resource(RapierConfiguration::default())
         .insert_resource(SimulationToRenderTime::default())
         .insert_resource(RapierContext::default())
         .insert_resource(Events::<CollisionEvent>::default())
@@ -205,6 +203,9 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(RigidBody::Fixed)
         .insert(Velocity::default())
         .insert(Transform::from_xyz(0., -100., 0.));
+
+    // Make sure we have a socket for later systems
+    commands.insert_resource::<Option<WebRtcSocket>>(None);
 }
 
 pub fn input(
