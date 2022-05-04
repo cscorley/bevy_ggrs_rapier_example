@@ -83,8 +83,15 @@ fn main() {
     app.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(WorldInspectorPlugin::new());
 
-    // TODO: cannot set scaling stuff
-    app.insert_resource(RapierConfiguration::default())
+    // TODO: cannot set scaling stuff per https://rapier.rs/docs/user_guides/bevy_plugin/common_mistakes#why-is-everything-moving-in-slow-motion
+    let config = RapierConfiguration {
+        timestep_mode: TimestepMode::Fixed {
+            dt: 1. / FPS as f32,
+            substeps: 1,
+        },
+        ..default()
+    };
+    app.insert_resource(config)
         .insert_resource(SimulationToRenderTime::default())
         .insert_resource(RapierContext::default())
         .insert_resource(Events::<CollisionEvent>::default())
@@ -115,21 +122,6 @@ fn main() {
         )
         .with_system(systems::writeback_rigid_bodies.after(systems::step_simulation::<NoUserData>));
 
-    // things tried:
-    // - physics pipeline at start
-    // - physics pipeline at start and after appling inputs (2 stages with same systems)
-    // - adding to velocity #[reflect(Component, PartialEq)]
-    // - checksum, no checksum
-    // - resetting physics context at start of schedule
-    // - store/restore (bincode) entire physics context at start and end of schedule
-
-    // things not yet tried:
-    // - rapier timestep configuration
-    // - rapier disable/enable physics configuration at key points instead of ^ all this v
-    // - bespoke velocity component
-    // - declaring via message which frame to start physics on
-    // - occasionally syncing the components over network
-    // - adding any other internal physics component for tracking
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
         .with_input_system(input)
