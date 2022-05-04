@@ -120,11 +120,12 @@ fn main() {
     // - physics pipeline at start and after appling inputs (2 stages with same systems)
     // - adding to velocity #[reflect(Component, PartialEq)]
     // - checksum, no checksum
-
-    // things tried previously not yet replicated here:
-    // - resetting physics context every frame update
+    // - resetting physics context at start of schedule
+    // - store/restore (bincode) entire physics context at start and end of schedule
 
     // things not yet tried:
+    // - rapier timestep configuration
+    // - rapier disable/enable physics configuration at key points instead of ^ all this v
     // - bespoke velocity component
     // - declaring via message which frame to start physics on
     // - occasionally syncing the components over network
