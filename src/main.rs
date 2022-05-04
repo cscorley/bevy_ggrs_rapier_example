@@ -97,7 +97,7 @@ fn main() {
         .insert_resource(Events::<CollisionEvent>::default())
         .insert_resource(PhysicsHooksWithQueryResource::<NoUserData>(Box::new(())));
 
-    // Would it be better to update our velocity components here?
+    // Extract the physics pipeline from plugin builder: https://github.com/dimforge/bevy_rapier/blob/master/src/plugin/plugin.rs#L65
     let physics_pipeline = SystemStage::parallel()
         .with_system(systems::init_async_shapes)
         .with_system(systems::apply_scale.after(systems::init_async_shapes))
