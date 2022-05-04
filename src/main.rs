@@ -67,8 +67,8 @@ fn main() {
     // Something smaller so we can put these side by side
     let window_info = WindowDescriptor {
         title: "Example".into(),
-        width: 640.0,
-        height: 360.0,
+        width: 800.0,
+        height: 600.0,
         ..default()
     };
 
@@ -189,7 +189,7 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
-        .insert(Transform::from_xyz(-10., 5., 0.));
+        .insert(Transform::from_xyz(-10., -50., 0.));
 
     commands
         .spawn()
@@ -201,16 +201,43 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
-        .insert(Transform::from_xyz(10., 5., 0.));
+        .insert(Transform::from_xyz(10., -50., 0.));
 
     commands
         .spawn()
         .insert(Name::new("Floor"))
-        .insert(Collider::cuboid(1000., 4.))
+        .insert(Collider::cuboid(200., 4.))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
-        .insert(Transform::from_xyz(0., -100., 0.));
+        .insert(Transform::from_xyz(0., -200., 0.));
+
+    commands
+        .spawn()
+        .insert(Name::new("Left Wall"))
+        .insert(Collider::cuboid(4., 200.))
+        .insert(LockedAxes::default())
+        .insert(Restitution::default())
+        .insert(RigidBody::Fixed)
+        .insert(Transform::from_xyz(-200., 0., 0.));
+
+    commands
+        .spawn()
+        .insert(Name::new("Right Wall"))
+        .insert(Collider::cuboid(4., 200.))
+        .insert(LockedAxes::default())
+        .insert(Restitution::default())
+        .insert(RigidBody::Fixed)
+        .insert(Transform::from_xyz(200., 0., 0.));
+
+    commands
+        .spawn()
+        .insert(Name::new("Ceiling"))
+        .insert(Collider::cuboid(200., 4.))
+        .insert(LockedAxes::default())
+        .insert(Restitution::default())
+        .insert(RigidBody::Fixed)
+        .insert(Transform::from_xyz(0., 200., 0.));
 
     // Make sure we have a socket for later systems
     commands.insert_resource::<Option<WebRtcSocket>>(None);
