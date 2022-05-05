@@ -82,10 +82,6 @@ fn main() {
     app.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(WorldInspectorPlugin::new());
 
-    let physics_plugin = RapierPhysicsPlugin::<NoUserData>::default()
-        .with_physics_scale(100.)
-        .with_system_setup(false);
-
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
         .with_input_system(input)
@@ -105,18 +101,18 @@ fn main() {
                     ROLLBACK_SYSTEMS,
                     PhysicsStages::SyncBackend,
                     SystemStage::parallel()
-                        .with_system_set(physics_plugin.get_sync_backend_systems()),
+                        .with_system_set(RapierPhysicsPlugin::<NoUserData>::get_sync_backend_systems()),
                 )
                 .with_stage_after(
                     PhysicsStages::SyncBackend,
                     PhysicsStages::StepSimulation,
                     SystemStage::parallel()
-                        .with_system_set(physics_plugin.get_step_simulation_systems()),
+                        .with_system_set(RapierPhysicsPlugin::<NoUserData>::get_step_simulation_systems()),
                 )
                 .with_stage_after(
                     PhysicsStages::StepSimulation,
                     PhysicsStages::Writeback,
-                    SystemStage::parallel().with_system_set(physics_plugin.get_writeback_systems()),
+                    SystemStage::parallel().with_system_set(RapierPhysicsPlugin::<NoUserData>::get_writeback_systems()),
                 )
                 .with_stage_after(
                     PhysicsStages::StepSimulation,
@@ -130,10 +126,16 @@ fn main() {
     app.add_stage_before(
         CoreStage::Last,
         PhysicsStages::DetectDespawn,
-        SystemStage::parallel().with_system_set(physics_plugin.get_detect_despawn_systems()),
+        SystemStage::parallel()
+            .with_system_set(RapierPhysicsPlugin::<NoUserData>::get_detect_despawn_systems()),
     );
 
-    app.add_plugin(physics_plugin);
+    // Configure plugin without system setup, otherwise your simulation will run twice
+    app.add_plugin(
+        RapierPhysicsPlugin::<NoUserData>::default()
+            .with_physics_scale(100.)
+            .with_system_setup(false),
+    );
 
     // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
     app.insert_resource(RapierConfiguration {
