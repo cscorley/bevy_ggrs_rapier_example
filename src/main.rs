@@ -1,7 +1,7 @@
 mod checksum;
 
+use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
-use bevy::{ecs::event::Events, prelude::*};
 use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
 use bevy_rapier2d::prelude::*;
 use bytemuck::{Pod, Zeroable};
@@ -14,7 +14,6 @@ use bevy_inspector_egui::WorldInspectorPlugin;
 const NUM_PLAYERS: usize = 2;
 const FPS: usize = 60;
 const ROLLBACK_SYSTEMS: &str = "rollback_systems";
-const PHYSICS_SYSTEMS: &str = "physics_systems";
 const CHECKSUM_SYSTEMS: &str = "checksum_systems";
 const MAX_PREDICTION: usize = 12;
 const INPUT_DELAY: usize = 2;
@@ -83,44 +82,17 @@ fn main() {
     app.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(WorldInspectorPlugin::new());
 
-    // TODO: cannot set scaling stuff per https://rapier.rs/docs/user_guides/bevy_plugin/common_mistakes#why-is-everything-moving-in-slow-motion
-    let config = RapierConfiguration {
+    app.insert_resource(RapierConfiguration {
         timestep_mode: TimestepMode::Fixed {
             dt: 1. / FPS as f32,
             substeps: 1,
         },
         ..default()
-    };
-    app.insert_resource(config)
-        .insert_resource(SimulationToRenderTime::default())
-        .insert_resource(RapierContext::default())
-        .insert_resource(Events::<CollisionEvent>::default())
-        .insert_resource(PhysicsHooksWithQueryResource::<NoUserData>(Box::new(())));
+    });
 
-    // Extract the physics pipeline from plugin builder: https://github.com/dimforge/bevy_rapier/blob/master/src/plugin/plugin.rs#L65
-    let physics_pipeline = SystemStage::parallel()
-        .with_system(systems::init_async_shapes)
-        .with_system(systems::apply_scale.after(systems::init_async_shapes))
-        .with_system(systems::apply_collider_user_changes.after(systems::apply_scale))
-        .with_system(
-            systems::apply_rigid_body_user_changes.after(systems::apply_collider_user_changes),
-        )
-        .with_system(
-            systems::apply_joint_user_changes.after(systems::apply_rigid_body_user_changes),
-        )
-        .with_system(systems::init_rigid_bodies.after(systems::apply_joint_user_changes))
-        .with_system(
-            systems::init_colliders
-                .after(systems::init_rigid_bodies)
-                .after(systems::init_async_shapes),
-        )
-        .with_system(systems::init_joints.after(systems::init_colliders))
-        .with_system(systems::sync_removals.after(systems::init_joints))
-        .with_system(systems::step_simulation::<NoUserData>.after(systems::sync_removals))
-        .with_system(
-            systems::update_colliding_entities.after(systems::step_simulation::<NoUserData>),
-        )
-        .with_system(systems::writeback_rigid_bodies.after(systems::step_simulation::<NoUserData>));
+    let physics_plugin = RapierPhysicsPlugin::<NoUserData>::default()
+        .with_physics_scale(100.)
+        .with_system_setup(false);
 
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
@@ -137,14 +109,39 @@ fn main() {
                         .with_system(apply_inputs)
                         .with_system(increase_frame_count),
                 )
-                .with_stage_after(ROLLBACK_SYSTEMS, PHYSICS_SYSTEMS, physics_pipeline)
                 .with_stage_after(
-                    PHYSICS_SYSTEMS,
+                    ROLLBACK_SYSTEMS,
+                    PhysicsStages::SyncBackend,
+                    SystemStage::parallel()
+                        .with_system_set(physics_plugin.get_sync_backend_systems()),
+                )
+                .with_stage_after(
+                    PhysicsStages::SyncBackend,
+                    PhysicsStages::StepSimulation,
+                    SystemStage::parallel()
+                        .with_system_set(physics_plugin.get_step_simulation_systems()),
+                )
+                .with_stage_after(
+                    PhysicsStages::StepSimulation,
+                    PhysicsStages::Writeback,
+                    SystemStage::parallel().with_system_set(physics_plugin.get_writeback_systems()),
+                )
+                .with_stage_after(
+                    PhysicsStages::StepSimulation,
                     CHECKSUM_SYSTEMS,
                     SystemStage::parallel().with_system(checksum::checksum),
                 ),
         )
         .build(&mut app);
+
+    // Be sure to setup all four stages
+    app.add_stage_before(
+        CoreStage::Last,
+        PhysicsStages::DetectDespawn,
+        SystemStage::parallel().with_system_set(physics_plugin.get_detect_despawn_systems()),
+    );
+
+    app.add_plugin(physics_plugin);
 
     app.run();
 }
