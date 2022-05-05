@@ -82,14 +82,6 @@ fn main() {
     app.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(WorldInspectorPlugin::new());
 
-    app.insert_resource(RapierConfiguration {
-        timestep_mode: TimestepMode::Fixed {
-            dt: 1. / FPS as f32,
-            substeps: 1,
-        },
-        ..default()
-    });
-
     let physics_plugin = RapierPhysicsPlugin::<NoUserData>::default()
         .with_physics_scale(100.)
         .with_system_setup(false);
@@ -142,6 +134,15 @@ fn main() {
     );
 
     app.add_plugin(physics_plugin);
+
+    // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
+    app.insert_resource(RapierConfiguration {
+        timestep_mode: TimestepMode::Fixed {
+            dt: 1. / FPS as f32,
+            substeps: 1,
+        },
+        ..default()
+    });
 
     app.run();
 }
