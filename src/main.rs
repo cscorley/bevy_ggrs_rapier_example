@@ -115,7 +115,7 @@ fn main() {
                     SystemStage::parallel().with_system_set(RapierPhysicsPlugin::<NoUserData>::get_writeback_systems()),
                 )
                 .with_stage_after(
-                    PhysicsStages::StepSimulation,
+                    PhysicsStages::Writeback,
                     CHECKSUM_SYSTEMS,
                     SystemStage::parallel().with_system(checksum::checksum),
                 ),

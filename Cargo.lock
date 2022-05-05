@@ -914,7 +914,7 @@ dependencies = [
 [[package]]
 name = "bevy_rapier2d"
 version = "0.13.2"
-source = "git+https://github.com/cscorley/bevy_rapier?branch=setup-systems#0965225e54f4e9f47f7505c11b903f0b117aa131"
+source = "git+https://github.com/cscorley/bevy_rapier?branch=setup-systems#2d5c53b7e7d2732f00dc7d5ac24c149a7c0e9d5f"
 dependencies = [
  "bevy",
  "bitflags",
