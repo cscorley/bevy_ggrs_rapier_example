@@ -306,7 +306,7 @@ pub fn apply_inputs(
         };
 
         if horizontal != 0. {
-            v.linvel.x += horizontal * 2.0;
+            v.linvel.x += horizontal * 200.0;
         } else {
             v.linvel.x = 0.;
         }
