@@ -177,6 +177,7 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::coefficient(1.0))
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
+        .insert(Ccd::enabled()) // Enable CCD on things that will be colliding from movement
         .insert(Transform::from_xyz(0., 10., 0.));
 
     commands
@@ -189,6 +190,7 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
+        .insert(Ccd::enabled()) // Enable CCD on things that will be colliding from movement
         .insert(Transform::from_xyz(-10., -50., 0.));
 
     commands
@@ -201,6 +203,7 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
+        .insert(Ccd::enabled()) // Enable CCD on things that will be colliding from movement
         .insert(Transform::from_xyz(10., -50., 0.));
 
     commands
