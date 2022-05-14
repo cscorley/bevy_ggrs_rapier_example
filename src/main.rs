@@ -184,7 +184,6 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::coefficient(1.0))
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
-        .insert(Ccd::enabled()) // Enable CCD on things that will be colliding from movement
         .insert(Transform::from_xyz(0., 10., 0.));
 
     commands
@@ -197,7 +196,6 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
-        .insert(Ccd::enabled()) // Enable CCD on things that will be colliding from movement
         .insert(Transform::from_xyz(-10., -50., 0.));
 
     commands
@@ -210,44 +208,80 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
-        .insert(Ccd::enabled()) // Enable CCD on things that will be colliding from movement
         .insert(Transform::from_xyz(10., -50., 0.));
+
+    let thickness = 10.0;
+    let box_length = 200.0;
+    let overlapping_box_length = box_length + thickness;
 
     commands
         .spawn()
         .insert(Name::new("Floor"))
-        .insert(Collider::cuboid(200., 4.))
+        .insert(Collider::cuboid(overlapping_box_length, thickness))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
-        .insert(Transform::from_xyz(0., -200., 0.));
+        .insert(Transform::from_xyz(0., -box_length, 0.));
 
     commands
         .spawn()
         .insert(Name::new("Left Wall"))
-        .insert(Collider::cuboid(4., 200.))
+        .insert(Collider::cuboid(thickness, overlapping_box_length))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
-        .insert(Transform::from_xyz(-200., 0., 0.));
+        .insert(Transform::from_xyz(-box_length, 0., 0.));
 
     commands
         .spawn()
         .insert(Name::new("Right Wall"))
-        .insert(Collider::cuboid(4., 200.))
+        .insert(Collider::cuboid(thickness, overlapping_box_length))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
-        .insert(Transform::from_xyz(200., 0., 0.));
+        .insert(Transform::from_xyz(box_length, 0., 0.));
 
     commands
         .spawn()
         .insert(Name::new("Ceiling"))
-        .insert(Collider::cuboid(200., 4.))
+        .insert(Collider::cuboid(overlapping_box_length, thickness))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
-        .insert(Transform::from_xyz(0., 200., 0.));
+        .insert(Transform::from_xyz(0., box_length, 0.));
+
+    let corner_position = box_length - thickness;
+    commands
+        .spawn()
+        .insert(Name::new("Right Corner"))
+        .insert(
+            Collider::convex_hull(&[
+                Vec2::new(0., 0.),
+                Vec2::new(-thickness * 2., 0.),
+                Vec2::new(0., thickness * 2.),
+            ])
+            .unwrap(),
+        )
+        .insert(LockedAxes::default())
+        .insert(Restitution::default())
+        .insert(RigidBody::Fixed)
+        .insert(Transform::from_xyz(corner_position, -corner_position, 0.));
+
+    commands
+        .spawn()
+        .insert(Name::new("Left Corner"))
+        .insert(
+            Collider::convex_hull(&[
+                Vec2::new(0., 0.),
+                Vec2::new(thickness * 2., 0.),
+                Vec2::new(0., thickness * 2.),
+            ])
+            .unwrap(),
+        )
+        .insert(LockedAxes::default())
+        .insert(Restitution::default())
+        .insert(RigidBody::Fixed)
+        .insert(Transform::from_xyz(-corner_position, -corner_position, 0.));
 
     // Make sure we have a socket for later systems
     commands.insert_resource::<Option<WebRtcSocket>>(None);
@@ -271,9 +305,6 @@ pub fn input(
     }
     if keyboard_input.pressed(KeyCode::D) {
         inp |= INPUT_RIGHT;
-    }
-    if keyboard_input.just_pressed(KeyCode::Back) {
-        inp |= INPUT_JUMP;
     }
 
     GGRSInput { inp }
@@ -302,24 +333,24 @@ pub fn apply_inputs(
             0.
         };
 
-        let vertical = if input & INPUT_JUMP != 0 {
-            if input & INPUT_DOWN != 0 && input & INPUT_UP == 0 {
-                -1.
-            } else {
-                1.
-            }
+        let vertical = if input & INPUT_DOWN != 0 && input & INPUT_UP == 0 {
+            -1.
+        } else if input & INPUT_DOWN == 0 && input & INPUT_UP != 0 {
+            1.
         } else {
             0.
         };
 
         if horizontal != 0. {
-            v.linvel.x += horizontal * 200.0;
+            v.linvel.x += horizontal * 10.0;
         } else {
             v.linvel.x = 0.;
         }
 
         if vertical != 0. {
-            v.linvel.y = vertical * 100.0;
+            v.linvel.y += vertical * 10.0;
+        } else {
+            v.linvel.y = 0.;
         }
     }
 }
