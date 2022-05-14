@@ -9,7 +9,9 @@ use ggrs::{Config, PlayerType, SessionBuilder};
 use ggrs::{InputStatus, PlayerHandle};
 use matchbox_socket::WebRtcSocket;
 
+use bevy::log::*;
 use bevy_inspector_egui::WorldInspectorPlugin;
+use bevy_inspector_egui_rapier::InspectableRapierPlugin;
 
 const NUM_PLAYERS: usize = 2;
 const FPS: usize = 60;
@@ -78,8 +80,17 @@ fn main() {
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_system(update_matchbox_socket);
 
-    app.add_plugin(RapierDebugRenderPlugin::default())
-        .add_plugin(WorldInspectorPlugin::new());
+    app.add_plugin(RapierDebugRenderPlugin::default());
+    app.add_plugin(InspectableRapierPlugin);
+    app.add_plugin(WorldInspectorPlugin::default());
+    app.add_plugin(bevy_diagnostic::DiagnosticsPlugin::default());
+    app.add_plugin(bevy_diagnostic::FrameTimeDiagnosticsPlugin::default());
+    app.add_plugin(bevy_diagnostic::EntityCountDiagnosticsPlugin::default());
+    app.add_plugin(bevy_diagnostic::LogDiagnosticsPlugin::default());
+    app.insert_resource(LogSettings {
+        level: Level::DEBUG,
+        ..default()
+    });
 
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
