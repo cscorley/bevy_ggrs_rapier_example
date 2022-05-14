@@ -17,9 +17,8 @@ const NUM_PLAYERS: usize = 2;
 const FPS: usize = 60;
 const ROLLBACK_SYSTEMS: &str = "rollback_systems";
 const CHECKSUM_SYSTEMS: &str = "checksum_systems";
-const MAX_PREDICTION: usize = 12;
+const MAX_PREDICTION: usize = 8;
 const INPUT_DELAY: usize = 2;
-const CHECK_DISTANCE: usize = 2;
 
 const MATCHBOX_ADDR: &str = "wss://match.gschup.dev";
 
@@ -383,8 +382,7 @@ fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
         .with_max_prediction_window(MAX_PREDICTION)
         .with_fps(FPS)
         .expect("Invalid FPS")
-        .with_input_delay(INPUT_DELAY)
-        .with_check_distance(CHECK_DISTANCE);
+        .with_input_delay(INPUT_DELAY);
 
     // add players
     let mut handles = Vec::new();
