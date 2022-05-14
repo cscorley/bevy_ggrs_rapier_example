@@ -21,11 +21,10 @@ const CHECK_DISTANCE: usize = 2;
 
 const MATCHBOX_ADDR: &str = "wss://match.gschup.dev";
 
-const INPUT_UP: u16 = 0b00001;
-const INPUT_DOWN: u16 = 0b00010;
-const INPUT_LEFT: u16 = 0b00100;
-const INPUT_RIGHT: u16 = 0b01000;
-const INPUT_JUMP: u16 = 0b10000;
+const INPUT_UP: u8 = 0b0001;
+const INPUT_DOWN: u8 = 0b0010;
+const INPUT_LEFT: u8 = 0b0100;
+const INPUT_RIGHT: u8 = 0b1000;
 
 pub struct LocalHandles {
     pub handles: Vec<PlayerHandle>,
@@ -38,7 +37,7 @@ pub struct ConnectData {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 pub struct GGRSInput {
-    pub inp: u16,
+    pub inp: u8,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
@@ -292,7 +291,7 @@ pub fn input(
     keyboard_input: Res<Input<KeyCode>>,
     _local_handles: Res<LocalHandles>,
 ) -> GGRSInput {
-    let mut inp: u16 = 0;
+    let mut inp: u8 = 0;
 
     if keyboard_input.pressed(KeyCode::W) {
         inp |= INPUT_UP;
