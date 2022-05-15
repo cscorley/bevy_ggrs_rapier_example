@@ -73,6 +73,7 @@ fn main() {
 
     // DefaultPlugins will use window descriptor
     app.insert_resource(window_info)
+        .insert_resource(ClearColor(Color::BLACK))
         .add_plugins(DefaultPlugins)
         .add_startup_system(startup)
         .add_system(keyboard_input)
@@ -149,7 +150,7 @@ fn main() {
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugin(
         RapierPhysicsPlugin::<NoUserData>::default()
-            .with_physics_scale(100.)
+            .with_physics_scale(8.)
             .with_default_system_setup(false),
     );
 
@@ -259,7 +260,7 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(RigidBody::Fixed)
         .insert(Transform::from_xyz(0., box_length, 0.));
 
-    let corner_position = box_length - thickness;
+    let corner_position = box_length - thickness + 4.;
     commands
         .spawn()
         .insert(Name::new("Right Corner"))
