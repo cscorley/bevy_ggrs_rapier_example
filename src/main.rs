@@ -107,6 +107,7 @@ fn main() {
         .register_rollback_type::<Transform>()
         .register_rollback_type::<Velocity>()
         .register_rollback_type::<CollidingEntities>()
+        .register_rollback_type::<Sleeping>()
         .register_rollback_type::<FrameCount>()
         .register_rollback_type::<checksum::Checksum>() // Required to hash Transform/Velocity
         .with_rollback_schedule(
@@ -223,6 +224,7 @@ pub fn startup(
         .insert(Restitution::coefficient(1.0))
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
+        .insert(Sleeping::default())
         .insert(Transform::from_xyz(0., 10., 0.));
 
     commands
@@ -241,6 +243,7 @@ pub fn startup(
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
+        .insert(Sleeping::default())
         .insert(Transform::from_xyz(-10., -50., 0.));
 
     commands
@@ -259,6 +262,7 @@ pub fn startup(
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
+        .insert(Sleeping::default())
         .insert(Transform::from_xyz(10., -50., 0.));
 
     let thickness = 10.0;
