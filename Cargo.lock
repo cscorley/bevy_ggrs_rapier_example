@@ -925,7 +925,6 @@ dependencies = [
 [[package]]
 name = "bevy_rapier2d"
 version = "0.13.2"
-source = "git+https://github.com/dimforge/bevy_rapier#3f04e8d6b9c4bacf54ce09a6cd358979329e4980"
 dependencies = [
  "bevy",
  "bitflags",

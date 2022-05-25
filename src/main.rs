@@ -52,6 +52,12 @@ pub struct FrameCount {
     pub frame: u32,
 }
 
+#[derive(Default, Reflect, Hash, Component, PartialEq)]
+#[reflect(Hash, Component, PartialEq)]
+pub struct LastFrameCount {
+    pub frame: u32,
+}
+
 #[derive(Debug)]
 pub struct GGRSConfig;
 impl Config for GGRSConfig {
@@ -78,15 +84,18 @@ fn main() {
         .add_startup_system(startup)
         .add_system(keyboard_input)
         .add_system(bevy::input::system::exit_on_esc_system)
+        //.add_system(print)
         .add_system(update_matchbox_socket);
 
     app.add_plugin(RapierDebugRenderPlugin::default());
     app.add_plugin(InspectableRapierPlugin);
     app.add_plugin(WorldInspectorPlugin::default());
-    app.add_plugin(bevy_diagnostic::DiagnosticsPlugin::default());
-    app.add_plugin(bevy_diagnostic::FrameTimeDiagnosticsPlugin::default());
-    app.add_plugin(bevy_diagnostic::EntityCountDiagnosticsPlugin::default());
-    app.add_plugin(bevy_diagnostic::LogDiagnosticsPlugin::default());
+    /*
+       app.add_plugin(bevy_diagnostic::DiagnosticsPlugin::default());
+       app.add_plugin(bevy_diagnostic::FrameTimeDiagnosticsPlugin::default());
+       app.add_plugin(bevy_diagnostic::EntityCountDiagnosticsPlugin::default());
+       app.add_plugin(bevy_diagnostic::LogDiagnosticsPlugin::default());
+    */
     app.insert_resource(LogSettings {
         level: Level::DEBUG,
         ..default()
@@ -97,6 +106,7 @@ fn main() {
         .with_input_system(input)
         .register_rollback_type::<Transform>()
         .register_rollback_type::<Velocity>()
+        .register_rollback_type::<CollidingEntities>()
         .register_rollback_type::<FrameCount>()
         .register_rollback_type::<checksum::Checksum>() // Required to hash Transform/Velocity
         .with_rollback_schedule(
@@ -150,7 +160,7 @@ fn main() {
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugin(
         RapierPhysicsPlugin::<NoUserData>::default()
-            .with_physics_scale(8.)
+            //.with_physics_scale(8.)
             .with_default_system_setup(false),
     );
 
@@ -160,6 +170,9 @@ fn main() {
             dt: 1. / FPS as f32,
             substeps: 1,
         },
+        gravity: Vec2::ZERO,
+        query_pipeline_active: false,
+
         ..default()
     });
 
@@ -181,8 +194,24 @@ pub fn keyboard_input(
     }
 }
 
-pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
+pub fn startup(
+    mut commands: Commands,
+    mut rip: ResMut<RollbackIdProvider>,
+    mut rapier: ResMut<RapierContext>,
+) {
+    // Disable ccd pipeline entirely
+    rapier.integration_parameters.max_ccd_substeps = 0;
+    rapier
+        .integration_parameters
+        .interleave_restitution_and_friction_resolution = false;
+    rapier.integration_parameters.max_stabilization_iterations = 4;
+    rapier
+        .integration_parameters
+        .max_velocity_friction_iterations = 32;
+    rapier.integration_parameters.max_velocity_iterations = 16;
+
     commands.insert_resource(FrameCount::default());
+    commands.insert_resource(LastFrameCount::default());
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
     commands
@@ -190,7 +219,7 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Name::new("Ball"))
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::ball(4.))
-        .insert(LockedAxes::default())
+        .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::coefficient(1.0))
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
@@ -201,7 +230,13 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Name::new("Player 1"))
         .insert(Player { handle: 0 })
         .insert(Rollback::new(rip.next_id()))
-        .insert(Collider::cuboid(4., 4.))
+        .insert(Collider::capsule(
+            Vec2::new(2., 5.),
+            Vec2::new(-2., -5.),
+            4.,
+        ))
+        //.insert(Collider::ball(4.))
+        //.insert(Collider::cuboid(8., 8.))
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
@@ -213,7 +248,13 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Name::new("Player 2"))
         .insert(Player { handle: 1 })
         .insert(Rollback::new(rip.next_id()))
-        .insert(Collider::cuboid(4., 4.))
+        .insert(Collider::capsule(
+            Vec2::new(2., 5.),
+            Vec2::new(-2., -5.),
+            4.,
+        ))
+        //.insert(Collider::ball(4.))
+        //.insert(Collider::cuboid(8., 8.))
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
@@ -263,7 +304,7 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
     let corner_position = box_length - thickness + 4.;
     commands
         .spawn()
-        .insert(Name::new("Right Corner"))
+        .insert(Name::new("Southeast Corner"))
         .insert(
             Collider::convex_hull(&[
                 Vec2::new(0., 0.),
@@ -279,7 +320,7 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
 
     commands
         .spawn()
-        .insert(Name::new("Left Corner"))
+        .insert(Name::new("Southwest Corner"))
         .insert(
             Collider::convex_hull(&[
                 Vec2::new(0., 0.),
@@ -292,6 +333,38 @@ pub fn startup(mut commands: Commands, mut rip: ResMut<RollbackIdProvider>) {
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
         .insert(Transform::from_xyz(-corner_position, -corner_position, 0.));
+
+    commands
+        .spawn()
+        .insert(Name::new("Northeast Corner"))
+        .insert(
+            Collider::convex_hull(&[
+                Vec2::new(0., 0.),
+                Vec2::new(-thickness * 2., 0.),
+                Vec2::new(0., -thickness * 2.),
+            ])
+            .unwrap(),
+        )
+        .insert(LockedAxes::default())
+        .insert(Restitution::default())
+        .insert(RigidBody::Fixed)
+        .insert(Transform::from_xyz(corner_position, corner_position, 0.));
+
+    commands
+        .spawn()
+        .insert(Name::new("Northwest Corner"))
+        .insert(
+            Collider::convex_hull(&[
+                Vec2::new(0., 0.),
+                Vec2::new(thickness * 2., 0.),
+                Vec2::new(0., -thickness * 2.),
+            ])
+            .unwrap(),
+        )
+        .insert(LockedAxes::default())
+        .insert(Restitution::default())
+        .insert(RigidBody::Fixed)
+        .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
 
     // Make sure we have a socket for later systems
     commands.insert_resource::<Option<WebRtcSocket>>(None);
@@ -320,8 +393,47 @@ pub fn input(
     GGRSInput { inp }
 }
 
-pub fn increase_frame_count(mut frame_count: ResMut<FrameCount>) {
+pub fn print(query: Query<(Entity, Option<&Name>)>) {
+    for (entity, name) in query.iter() {
+        if let Some(name) = name {
+            log::info!("entity {} = {}", entity.id(), name);
+        } else {
+            log::info!("entity {} = {}", entity.id(), entity.type_name());
+        }
+    }
+}
+
+pub fn increase_frame_count(
+    mut frame_count: ResMut<FrameCount>,
+    mut last_frame_count: ResMut<LastFrameCount>,
+    mut transforms: Query<&mut Transform, With<Rollback>>,
+    mut velocities: Query<&mut Velocity, With<Rollback>>,
+    mut sleepings: Query<&mut Sleeping, With<Rollback>>,
+) {
+    let is_rollback = last_frame_count.frame > frame_count.frame;
+
+    if is_rollback {
+        log::info!(
+            "rollback on {} to {}",
+            last_frame_count.frame,
+            frame_count.frame
+        );
+    }
+
+    /*
+    // Trigger changes for all of these to be sure sync picks them up
+    for mut t in transforms.iter_mut() {
+        t.translation = t.translation;
+    }
+    for mut v in velocities.iter_mut() {
+        v.angvel = v.angvel;
+    }
+    for mut s in sleepings.iter_mut() {
+        s.sleeping = s.sleeping;
+    } */
+
     frame_count.frame += 1;
+    last_frame_count.frame = frame_count.frame;
 }
 
 pub fn apply_inputs(
