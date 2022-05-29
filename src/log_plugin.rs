@@ -37,7 +37,11 @@ impl Plugin for LogPlugin {
             .unwrap();
         let subscriber = Registry::default().with(filter_layer);
 
-        let fmt_layer = tracing_subscriber::fmt::Layer::default().without_time();
+        let fmt_layer = tracing_subscriber::fmt::Layer::default()
+            .without_time()
+            .with_target(false)
+            .with_level(false)
+            .with_ansi(false);
 
         let subscriber = subscriber.with(fmt_layer);
 

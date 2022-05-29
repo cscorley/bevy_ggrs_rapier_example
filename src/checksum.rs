@@ -43,7 +43,7 @@ pub fn checksum(
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         frame_count.rapier_checksum = fletcher16(&context_bytes);
         log::info!(
-            "Context Hash at frame {}: {}",
+            "Context Hash after frame {}: {}",
             frame_count.frame,
             frame_count.rapier_checksum
         );

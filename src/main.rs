@@ -206,6 +206,7 @@ pub fn startup(
     // Disable ccd pipeline entirely
     rapier.integration_parameters.max_ccd_substeps = 0;
 
+    /*
     rapier.integration_parameters.damping_ratio = 1.0;
     rapier
         .integration_parameters
@@ -215,15 +216,20 @@ pub fn startup(
         .integration_parameters
         .max_velocity_friction_iterations = 32;
     rapier.integration_parameters.max_velocity_iterations = 16;
+     */
 
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        log::info!(
-            "Context Hash at startup: {}",
-            checksum::fletcher16(&context_bytes)
-        );
+        let rapier_checksum = checksum::fletcher16(&context_bytes);
+        log::info!("Context Hash at startup: {}", rapier_checksum);
+
+        commands.insert_resource(FrameCount {
+            rapier_checksum,
+            ..default()
+        });
+    } else {
+        commands.insert_resource(FrameCount::default());
     }
 
-    commands.insert_resource(FrameCount::default());
     commands.insert_resource(LastFrameCount::default());
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
@@ -425,6 +431,7 @@ pub fn increase_frame_count(
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
+    mut rapier: ResMut<RapierContext>,
 ) {
     let is_rollback = last_frame_count.frame > frame_count.frame;
 
@@ -449,15 +456,37 @@ pub fn increase_frame_count(
 
     frame_count.frame += 1;
     last_frame_count.frame = frame_count.frame;
+
+    if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
+        frame_count.rapier_checksum = checksum::fletcher16(&context_bytes);
+        log::info!(
+            "Context Hash at frame {}: {}",
+            frame_count.frame,
+            frame_count.rapier_checksum
+        );
+    }
 }
 
 pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
     inputs: Res<Vec<(GGRSInput, InputStatus)>>,
+    frame_count: Res<FrameCount>,
 ) {
     for (mut v, p) in query.iter_mut() {
         let input = match inputs[p.handle].1 {
-            InputStatus::Confirmed => inputs[p.handle].0.inp,
+            InputStatus::Confirmed => {
+                let inp = inputs[p.handle].0.inp;
+
+                if inp > 0 {
+                    log::info!(
+                        "input from {} at frame {}: {}",
+                        p.handle,
+                        frame_count.frame,
+                        inp
+                    )
+                }
+                inp
+            }
             InputStatus::Predicted => inputs[p.handle].0.inp,
             InputStatus::Disconnected => 0, // disconnected players do nothing
         };
