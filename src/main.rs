@@ -50,6 +50,7 @@ pub struct Player {
 #[reflect(Hash, Component, PartialEq)]
 pub struct FrameCount {
     pub frame: u32,
+    pub rapier_checksum: u16,
 }
 
 #[derive(Default, Reflect, Hash, Component, PartialEq)]
@@ -106,7 +107,7 @@ fn main() {
         .with_input_system(input)
         .register_rollback_type::<Transform>()
         .register_rollback_type::<Velocity>()
-        .register_rollback_type::<CollidingEntities>()
+        //.register_rollback_type::<CollidingEntities>()
         .register_rollback_type::<Sleeping>()
         .register_rollback_type::<FrameCount>()
         .register_rollback_type::<checksum::Checksum>() // Required to hash Transform/Velocity
@@ -115,8 +116,8 @@ fn main() {
                 .with_stage(
                     ROLLBACK_SYSTEMS,
                     SystemStage::parallel()
-                        .with_system(apply_inputs)
-                        .with_system(increase_frame_count),
+                        .with_system(increase_frame_count)
+                        .with_system(apply_inputs.after(increase_frame_count)),
                 )
                 .with_stage_after(
                     ROLLBACK_SYSTEMS,
@@ -202,14 +203,23 @@ pub fn startup(
 ) {
     // Disable ccd pipeline entirely
     rapier.integration_parameters.max_ccd_substeps = 0;
+
+    rapier.integration_parameters.damping_ratio = 1.0;
     rapier
         .integration_parameters
         .interleave_restitution_and_friction_resolution = false;
-    rapier.integration_parameters.max_stabilization_iterations = 4;
+    rapier.integration_parameters.max_stabilization_iterations = 1;
     rapier
         .integration_parameters
         .max_velocity_friction_iterations = 32;
     rapier.integration_parameters.max_velocity_iterations = 16;
+
+    if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
+        log::info!(
+            "Context Hash at startup: {}",
+            checksum::fletcher16(&context_bytes)
+        );
+    }
 
     commands.insert_resource(FrameCount::default());
     commands.insert_resource(LastFrameCount::default());
@@ -233,9 +243,9 @@ pub fn startup(
         .insert(Player { handle: 0 })
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::capsule(
-            Vec2::new(2., 5.),
-            Vec2::new(-2., -5.),
-            4.,
+            Vec2::new(0., 5.),
+            Vec2::new(0., -5.),
+            10.,
         ))
         //.insert(Collider::ball(4.))
         //.insert(Collider::cuboid(8., 8.))
@@ -252,9 +262,9 @@ pub fn startup(
         .insert(Player { handle: 1 })
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::capsule(
-            Vec2::new(2., 5.),
-            Vec2::new(-2., -5.),
-            4.,
+            Vec2::new(0., 5.),
+            Vec2::new(0., -5.),
+            10.,
         ))
         //.insert(Collider::ball(4.))
         //.insert(Collider::cuboid(8., 8.))
@@ -424,17 +434,16 @@ pub fn increase_frame_count(
         );
     }
 
-    /*
     // Trigger changes for all of these to be sure sync picks them up
     for mut t in transforms.iter_mut() {
-        t.translation = t.translation;
+        t.set_changed();
     }
     for mut v in velocities.iter_mut() {
-        v.angvel = v.angvel;
+        v.set_changed();
     }
     for mut s in sleepings.iter_mut() {
-        s.sleeping = s.sleeping;
-    } */
+        s.set_changed();
+    }
 
     frame_count.frame += 1;
     last_frame_count.frame = frame_count.frame;
@@ -499,7 +508,8 @@ fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
         .with_max_prediction_window(MAX_PREDICTION)
         .with_fps(FPS)
         .expect("Invalid FPS")
-        .with_input_delay(INPUT_DELAY);
+        .with_input_delay(INPUT_DELAY)
+        .with_sparse_saving_mode(true);
 
     // add players
     let mut handles = Vec::new();
@@ -519,5 +529,7 @@ fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
 
     commands.insert_resource(session);
     commands.insert_resource(LocalHandles { handles });
+
+    // bevy_ggrs uses this to know when to start
     commands.insert_resource(SessionType::P2PSession);
 }
