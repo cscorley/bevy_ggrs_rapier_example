@@ -1,4 +1,5 @@
 mod checksum;
+mod log_plugin;
 
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
@@ -81,7 +82,12 @@ fn main() {
     // DefaultPlugins will use window descriptor
     app.insert_resource(window_info)
         .insert_resource(ClearColor(Color::BLACK))
-        .add_plugins(DefaultPlugins)
+        .insert_resource(LogSettings {
+            level: Level::DEBUG,
+            ..default()
+        })
+        .add_plugins_with(DefaultPlugins, |plugins| plugins.disable::<LogPlugin>())
+        .add_plugin(log_plugin::LogPlugin)
         .add_startup_system(startup)
         .add_system(keyboard_input)
         .add_system(bevy::input::system::exit_on_esc_system)
@@ -97,10 +103,6 @@ fn main() {
        app.add_plugin(bevy_diagnostic::EntityCountDiagnosticsPlugin::default());
        app.add_plugin(bevy_diagnostic::LogDiagnosticsPlugin::default());
     */
-    app.insert_resource(LogSettings {
-        level: Level::DEBUG,
-        ..default()
-    });
 
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
@@ -509,7 +511,7 @@ fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
         .with_fps(FPS)
         .expect("Invalid FPS")
         .with_input_delay(INPUT_DELAY)
-        .with_sparse_saving_mode(true);
+        .with_sparse_saving_mode(false);
 
     // add players
     let mut handles = Vec::new();

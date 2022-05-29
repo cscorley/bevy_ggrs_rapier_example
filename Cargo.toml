@@ -19,6 +19,11 @@ bevy_rapier2d = { path = "../bevy_rapier/bevy_rapier2d", features = [ "enhanced-
 bevy_diagnostic = "0.7.0"
 bincode="1.3.3"
 
+tracing-subscriber = {version = "0.3.1", features = ["registry", "env-filter"]}
+tracing-tracy = { version = "0.9.0" }
+tracing-log = "0.1.2"
+tracing-error = { version = "0.2.0" }
+
 [patch.crates-io]
 ggrs = { git = "https://github.com/gschup/ggrs" } # Force matchbox_socket to same version
 # bevy_rapier2d = { git = "https://github.com/dimforge/bevy_rapier" } # bevy-inspector-egui-rapier
