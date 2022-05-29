@@ -11,7 +11,8 @@ bevy_asset_loader = "0.10.0"
 bevy = "0.7.0"
 bytemuck = {version="1.7.3", features= ["derive"]}
 ggrs = { git = "https://github.com/gschup/ggrs", features=["sync-send"]}
-bevy_ggrs = { git = "https://github.com/gschup/bevy_ggrs" }
+# bevy_ggrs = { git = "https://github.com/gschup/bevy_ggrs" }
+bevy_ggrs = { path = "../bevy_ggrs" }
 matchbox_socket = { git = "https://github.com/johanhelsing/matchbox", features = ["ggrs-socket"] }
 log = "0.4"
 # Merged changes in this PR https://github.com/dimforge/bevy_rapier/pull/169

@@ -14,6 +14,7 @@ pub fn checksum(
     mut query: Query<(&Transform, &Velocity, &mut Checksum), With<Rollback>>,
     mut frame_count: ResMut<FrameCount>,
     rapier: Res<RapierContext>,
+    mut state: ResMut<GameState>,
 ) {
     for (t, v, mut checksum) in query.iter_mut() {
         let mut bytes = Vec::with_capacity(16 * 3 * 2);
@@ -47,6 +48,8 @@ pub fn checksum(
             frame_count.frame,
             frame_count.rapier_checksum
         );
+
+        state.rapier_state = context_bytes;
     }
 }
 

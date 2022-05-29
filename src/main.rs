@@ -64,8 +64,14 @@ pub struct LastFrameCount {
 pub struct GGRSConfig;
 impl Config for GGRSConfig {
     type Input = GGRSInput;
-    type State = u16;
+    type State = u8;
     type Address = String;
+}
+
+#[derive(Default, Reflect, Hash, Component, PartialEq)]
+#[reflect(Hash, Component, PartialEq)]
+pub struct GameState {
+    pub rapier_state: Vec<u8>,
 }
 
 fn main() {
@@ -107,6 +113,7 @@ fn main() {
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
         .with_input_system(input)
+        .register_rollback_type::<GameState>()
         .register_rollback_type::<Transform>()
         .register_rollback_type::<Velocity>()
         //.register_rollback_type::<CollidingEntities>()
@@ -226,6 +233,9 @@ pub fn startup(
             rapier_checksum,
             ..default()
         });
+        commands.insert_resource(GameState {
+            rapier_state: context_bytes,
+        })
     } else {
         commands.insert_resource(FrameCount::default());
     }
@@ -426,12 +436,14 @@ pub fn print(query: Query<(Entity, Option<&Name>)>) {
 }
 
 pub fn increase_frame_count(
+    mut commands: Commands,
     mut frame_count: ResMut<FrameCount>,
     mut last_frame_count: ResMut<LastFrameCount>,
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
     mut rapier: ResMut<RapierContext>,
+    state: Res<GameState>,
 ) {
     let is_rollback = last_frame_count.frame > frame_count.frame;
 
@@ -460,11 +472,32 @@ pub fn increase_frame_count(
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         frame_count.rapier_checksum = checksum::fletcher16(&context_bytes);
         log::info!(
-            "Context Hash at frame {}: {}",
+            "Context Hash at frame {}: {}   {}",
             frame_count.frame,
-            frame_count.rapier_checksum
+            frame_count.rapier_checksum,
+            checksum::fletcher16(&state.rapier_state)
         );
     }
+
+    /*
+    if frame_count.frame > 10 {
+        if let Ok(context) = bincode::deserialize::<RapierContext>(state.rapier_state.as_ref()) {
+            //commands.insert_resource(context);
+            // *rapier = context;
+            rapier.bodies = context.bodies;
+            rapier.colliders = context.colliders;
+            rapier.broad_phase = context.broad_phase;
+            rapier.narrow_phase = context.narrow_phase;
+            rapier.ccd_solver = context.ccd_solver;
+            rapier.impulse_joints = context.impulse_joints;
+            rapier.integration_parameters = context.integration_parameters;
+            rapier.islands = context.islands;
+            rapier.multibody_joints = context.multibody_joints;
+            rapier.pipeline = context.pipeline;
+            rapier.query_pipeline = context.query_pipeline;
+        }
+    }
+    */
 }
 
 pub fn apply_inputs(

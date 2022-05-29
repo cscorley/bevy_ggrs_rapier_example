@@ -741,13 +741,13 @@ dependencies = [
 [[package]]
 name = "bevy_ggrs"
 version = "0.9.0"
-source = "git+https://github.com/gschup/bevy_ggrs#928376df6b37f391ef6593e0355ba5a737ec1492"
 dependencies = [
  "bevy",
  "bytemuck",
  "ggrs",
  "instant",
  "log",
+ "serde",
 ]
 
 [[package]]
