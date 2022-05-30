@@ -1,14 +1,41 @@
 {
   "version": "2.0.0",
+  "presentation": {
+    "echo": false,
+    "reveal": "always",
+    "focus": false,
+    "panel": "dedicated",
+    "showReuseMessage": true
+  },
   "tasks": [
+    {
+      "label": "all",
+      "dependsOn": ["cargo1", "cargo2"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
     {
       "type": "cargo",
       "command": "run",
       "problemMatcher": ["$rustc"],
-      "label": "rust: cargo run",
-      "group": {
-        "kind": "build",
-        "isDefault": true
+      "label": "cargo1",
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "group": "2ofthem"
+      }
+    },
+    {
+      "type": "cargo",
+      "command": "run",
+      "problemMatcher": ["$rustc"],
+      "label": "cargo2",
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "group": "2ofthem"
       }
     }
   ]
