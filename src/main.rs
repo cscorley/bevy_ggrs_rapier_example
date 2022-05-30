@@ -24,7 +24,8 @@ const MAX_PREDICTION: usize = 8;
 const INPUT_DELAY: usize = 2;
 
 // TODO: Buy gschup a coffee next time you get the chance
-const MATCHBOX_ADDR: &str = "wss://match.gschup.dev";
+// TODO: Maybe update this lobby_id so we don't test with each other :)
+const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier_example?next=2";
 
 const INPUT_UP: u8 = 0b0001;
 const INPUT_DOWN: u8 = 0b0010;
@@ -139,7 +140,7 @@ fn main() {
                 )
                 // The next 3 stages are all bevy_rapier stages.  Best to leave these in order.
                 .with_stage_after(
-                    ROLLBACK_SYSTEMS,
+                    GAME_SYSTEMS,
                     PhysicsStages::SyncBackend,
                     SystemStage::parallel().with_system_set(
                         RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsStages::SyncBackend),
@@ -229,7 +230,7 @@ pub fn startup(
 
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         let rapier_checksum = fletcher16(&context_bytes);
-        log::info!("Context Hash at startup: {}", rapier_checksum);
+        log::info!("Context at init: {}", rapier_checksum);
 
         commands.insert_resource(GameState {
             rapier_state: Some(context_bytes),
@@ -400,11 +401,8 @@ pub fn startup(
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
 
-    // Make sure we have a socket for later systems
-    // commands.insert_resource::<Option<WebRtcSocket>>(None);
-    let lobby_id = "testing-stuff?next=2";
-    let room_url = format!("{MATCHBOX_ADDR}/{lobby_id}");
-    let (socket, message_loop) = WebRtcSocket::new(room_url);
+    // Connect immediately.
+    let (socket, message_loop) = WebRtcSocket::new(MATCHBOX_ADDR);
     task_pool.spawn(message_loop).detach();
     commands.insert_resource(Some(socket));
 }
@@ -450,13 +448,14 @@ pub fn update_game_state(
     mut game_state: ResMut<GameState>,
     mut last_frame_count: ResMut<LastFrameCount>,
     mut rapier: ResMut<RapierContext>,
+    /*
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
     mut exit: EventWriter<AppExit>,
+    */
 ) {
     let is_rollback = last_frame_count.frame > game_state.frame;
-
     if is_rollback {
         log::info!(
             "rollback on {} to {}",
@@ -480,8 +479,7 @@ pub fn update_game_state(
         };
 
         log::info!(
-            "Context Hash at frame {}: {}   {}",
-            game_state.frame,
+            "Context at start: {}\t{}",
             game_state.rapier_checksum,
             serialized_checksum
         );
@@ -542,20 +540,16 @@ pub fn save_game_state(mut game_state: ResMut<GameState>, rapier: Res<RapierCont
     // using the plugin and implementing GGRS yourself.
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         game_state.rapier_checksum = fletcher16(&context_bytes);
-        log::info!(
-            "Context Hash after frame {}: {}",
-            game_state.frame,
-            game_state.rapier_checksum
-        );
-
         game_state.rapier_state = Some(context_bytes);
+
+        log::info!("Context at save: {}", game_state.rapier_checksum);
+        log::info!("----- end frame {} -----", game_state.frame);
     }
 }
 
 pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
     inputs: Res<Vec<(GGRSInput, InputStatus)>>,
-    game_state: Res<GameState>,
 ) {
     for (mut v, p) in query.iter_mut() {
         let input_status = inputs[p.handle].1;
@@ -567,13 +561,7 @@ pub fn apply_inputs(
 
         if input > 0 {
             // Useful for desync observing
-            log::info!(
-                "input {:?} from {} at frame {}: {}",
-                input_status,
-                p.handle,
-                game_state.frame,
-                input
-            )
+            log::info!("input {:?} from {}: {}", input_status, p.handle, input)
         }
 
         let horizontal = if input & INPUT_LEFT != 0 && input & INPUT_RIGHT == 0 {
