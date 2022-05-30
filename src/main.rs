@@ -25,7 +25,7 @@ const INPUT_DELAY: usize = 2;
 
 // TODO: Buy gschup a coffee next time you get the chance
 // TODO: Maybe update this lobby_id so we don't test with each other :)
-const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier_example?next=2";
+const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
 
 const INPUT_UP: u8 = 0b0001;
 const INPUT_DOWN: u8 = 0b0010;
@@ -238,12 +238,19 @@ pub fn startup(
     commands.insert_resource(LastFrameCount::default());
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
+    // Everything must be spawned in the same order, every time,
+    // deterministically.  There is also potential for bevy itself to return
+    // queries to bevy_rapier that do not have the entities in the same order,
+    // but in my experience with this example, that is not the case.  A patch to
+    // bevy_rapier would be required to ensure some sort of Entity order
+    // otherwise.
     commands
         .spawn()
         .insert(Name::new("Ball"))
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::ball(4.))
-        // Allowing rotations seems to increase the chance of a difference in calculation.
+        // Allowing rotations seems to increase the chance of a difference in
+        // calculation (and thus cause desync).
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::coefficient(2.0))
         .insert(RigidBody::Dynamic)
