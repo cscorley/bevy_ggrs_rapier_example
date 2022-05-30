@@ -254,6 +254,7 @@ pub fn startup(
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(0., 10., 0.));
 
     commands
@@ -273,6 +274,7 @@ pub fn startup(
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(-10., -50., 0.));
 
     commands
@@ -292,6 +294,7 @@ pub fn startup(
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(10., -50., 0.));
 
     let thickness = 10.0;
@@ -305,6 +308,7 @@ pub fn startup(
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(0., -box_length, 0.));
 
     commands
@@ -314,6 +318,7 @@ pub fn startup(
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(-box_length, 0., 0.));
 
     commands
@@ -323,6 +328,7 @@ pub fn startup(
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(box_length, 0., 0.));
 
     commands
@@ -332,6 +338,7 @@ pub fn startup(
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(0., box_length, 0.));
 
     let corner_position = box_length - thickness + 4.;
@@ -349,6 +356,7 @@ pub fn startup(
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(corner_position, -corner_position, 0.));
 
     commands
@@ -365,6 +373,7 @@ pub fn startup(
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(-corner_position, -corner_position, 0.));
 
     commands
@@ -381,6 +390,7 @@ pub fn startup(
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(corner_position, corner_position, 0.));
 
     commands
@@ -397,6 +407,7 @@ pub fn startup(
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
+        .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
 
     // Make sure we have a socket for later systems
@@ -498,9 +509,10 @@ pub fn increase_frame_count(
         }
     }
 
+    /*
     if frame_count.frame > 10 {
         exit.send(AppExit);
-    }
+    } */
 }
 
 pub fn apply_inputs(
