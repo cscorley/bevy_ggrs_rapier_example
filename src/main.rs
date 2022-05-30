@@ -197,6 +197,9 @@ fn main() {
         // Turn off query pipeline since this example does not use it
         query_pipeline_active: false,
 
+        // We will turn this on in frame 3, this helps when looking at init issues
+        physics_pipeline_active: false,
+
         ..default()
     });
 
@@ -252,7 +255,7 @@ pub fn startup(
         // Allowing rotations seems to increase the chance of a difference in
         // calculation (and thus cause desync).
         .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(Restitution::coefficient(2.0))
+        .insert(Restitution::coefficient(1.0))
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
@@ -412,7 +415,13 @@ pub fn input(
     keyboard_input: Res<Input<KeyCode>>,
     _local_handles: Res<LocalHandles>,
     random: Res<RandomInput>,
+    game_state: Res<GameState>,
 ) -> GGRSInput {
+    // Only allow input after frame 5 for init testing
+    if game_state.frame <= 5 {
+        return GGRSInput { inp: 0 };
+    }
+
     let mut inp: u8 = 0;
 
     if keyboard_input.pressed(KeyCode::W) {
@@ -448,6 +457,7 @@ pub fn update_game_state(
     mut game_state: ResMut<GameState>,
     mut last_frame_count: ResMut<LastFrameCount>,
     mut rapier: ResMut<RapierContext>,
+    mut config: ResMut<RapierConfiguration>,
     /*
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
@@ -523,6 +533,11 @@ pub fn update_game_state(
                 rapier.query_pipeline = context.query_pipeline;
             }
         }
+    }
+
+    // Enable physics on frame 4
+    if game_state.frame > 3 && !config.physics_pipeline_active {
+        config.physics_pipeline_active = true;
     }
 
     // Useful for init testing to make sure our checksums always start the same.
