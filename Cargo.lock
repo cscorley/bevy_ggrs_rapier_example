@@ -758,7 +758,6 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy-inspector-egui-rapier",
  "bevy_asset_loader",
- "bevy_diagnostic",
  "bevy_ggrs",
  "bevy_rapier2d",
  "bincode",

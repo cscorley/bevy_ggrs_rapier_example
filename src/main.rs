@@ -108,13 +108,6 @@ fn main() {
     app.add_plugin(RapierDebugRenderPlugin::default());
     app.add_plugin(InspectableRapierPlugin);
     app.add_plugin(WorldInspectorPlugin::default());
-    /*
-        These are nice but noisy when comparing desync output
-       app.add_plugin(bevy_diagnostic::DiagnosticsPlugin::default());
-       app.add_plugin(bevy_diagnostic::FrameTimeDiagnosticsPlugin::default());
-       app.add_plugin(bevy_diagnostic::EntityCountDiagnosticsPlugin::default());
-       app.add_plugin(bevy_diagnostic::LogDiagnosticsPlugin::default());
-    */
 
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
