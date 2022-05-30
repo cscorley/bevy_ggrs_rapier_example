@@ -10,6 +10,7 @@ use bytemuck::{Pod, Zeroable};
 use ggrs::{Config, PlayerType, SessionBuilder};
 use ggrs::{InputStatus, PlayerHandle};
 use matchbox_socket::WebRtcSocket;
+use rand::{thread_rng, Rng};
 
 use bevy::log::*;
 use bevy_inspector_egui::WorldInspectorPlugin;
@@ -59,6 +60,12 @@ pub struct FrameCount {
 #[reflect(Hash, Component, PartialEq)]
 pub struct LastFrameCount {
     pub frame: u32,
+}
+
+#[derive(Default, Reflect, Hash, Component, PartialEq)]
+#[reflect(Hash, Component, PartialEq)]
+pub struct RandomInput {
+    pub on: bool,
 }
 
 #[derive(Debug)]
@@ -204,12 +211,20 @@ pub fn keyboard_input(
         task_pool.spawn(message_loop).detach();
         commands.insert_resource(Some(socket));
     }
+
+    if keys.just_pressed(KeyCode::R) {
+        commands.insert_resource(RandomInput { on: true });
+    }
+    if keys.just_pressed(KeyCode::T) {
+        commands.insert_resource(RandomInput { on: false });
+    }
 }
 
 pub fn startup(
     mut commands: Commands,
     mut rip: ResMut<RollbackIdProvider>,
     mut rapier: ResMut<RapierContext>,
+    task_pool: Res<IoTaskPool>,
 ) {
     // Disable ccd pipeline entirely
     rapier.integration_parameters.max_ccd_substeps = 0;
@@ -241,6 +256,7 @@ pub fn startup(
         commands.insert_resource(FrameCount::default());
     }
 
+    commands.insert_resource(RandomInput { on: true });
     commands.insert_resource(LastFrameCount::default());
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
@@ -250,7 +266,7 @@ pub fn startup(
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::ball(4.))
         .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(Restitution::coefficient(1.0))
+        .insert(Restitution::coefficient(2.0))
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
@@ -411,13 +427,19 @@ pub fn startup(
         .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
 
     // Make sure we have a socket for later systems
-    commands.insert_resource::<Option<WebRtcSocket>>(None);
+    // commands.insert_resource::<Option<WebRtcSocket>>(None);
+    let lobby_id = "testing-stuff?next=2";
+    let room_url = format!("{MATCHBOX_ADDR}/{lobby_id}");
+    let (socket, message_loop) = WebRtcSocket::new(room_url);
+    task_pool.spawn(message_loop).detach();
+    commands.insert_resource(Some(socket));
 }
 
 pub fn input(
     _handle: In<PlayerHandle>,
     keyboard_input: Res<Input<KeyCode>>,
     _local_handles: Res<LocalHandles>,
+    random: Res<RandomInput>,
 ) -> GGRSInput {
     let mut inp: u8 = 0;
 
@@ -432,6 +454,17 @@ pub fn input(
     }
     if keyboard_input.pressed(KeyCode::D) {
         inp |= INPUT_RIGHT;
+    }
+
+    if inp == 0 && random.on {
+        let mut rng = thread_rng();
+        match rng.gen_range(0..6) {
+            0 => inp = INPUT_UP,
+            1 => inp = INPUT_LEFT,
+            2 => inp = INPUT_DOWN,
+            3 => inp = INPUT_RIGHT,
+            _ => (),
+        }
     }
 
     GGRSInput { inp }
@@ -495,6 +528,7 @@ pub fn increase_frame_count(
         if let Ok(context) = bincode::deserialize::<RapierContext>(state.rapier_state.as_ref()) {
             //commands.insert_resource(context);
             // *rapier = context;
+            // It's honest work
             rapier.bodies = context.bodies;
             rapier.colliders = context.colliders;
             rapier.broad_phase = context.broad_phase;
@@ -510,7 +544,7 @@ pub fn increase_frame_count(
     }
 
     if frame_count.frame > 10 {
-        exit.send(AppExit);
+        //exit.send(AppExit);
     }
 }
 

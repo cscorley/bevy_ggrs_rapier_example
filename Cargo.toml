@@ -26,6 +26,8 @@ tracing-tracy = { version = "0.9.0" }
 tracing-log = "0.1.2"
 tracing-error = { version = "0.2.0" }
 
+rand = "0.8.5"
+
 [patch.crates-io]
 ggrs = { git = "https://github.com/gschup/ggrs" } # Force matchbox_socket to same version
 bevy_rapier2d = { git = "https://github.com/dimforge/bevy_rapier" } # bevy-inspector-egui-rapier
