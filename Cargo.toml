@@ -15,8 +15,13 @@ bevy_ggrs = { git = "https://github.com/gschup/bevy_ggrs" }
 matchbox_socket = { git = "https://github.com/johanhelsing/matchbox", features = ["ggrs-socket"] }
 log = "0.4"
 # Merged changes in this PR https://github.com/dimforge/bevy_rapier/pull/169
-bevy_rapier2d = { git = "https://github.com/dimforge/bevy_rapier", features = [ "enhanced-determinism" ] }
-bevy_diagnostic = "0.7.0"
+bevy_rapier2d = { git= "https://github.com/dimforge/bevy_rapier", features = [ "enhanced-determinism", "serde-serialize" ] }
+bincode="1.3.3"
+tracing-subscriber = {version = "0.3.1", features = ["registry", "env-filter"]}
+tracing-tracy = { version = "0.9.0" }
+tracing-log = "0.1.2"
+tracing-error = { version = "0.2.0" }
+rand = "0.8.5"
 
 [patch.crates-io]
 ggrs = { git = "https://github.com/gschup/ggrs" } # Force matchbox_socket to same version
