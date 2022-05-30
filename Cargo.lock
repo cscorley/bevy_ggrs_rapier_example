@@ -741,6 +741,7 @@ dependencies = [
 [[package]]
 name = "bevy_ggrs"
 version = "0.9.0"
+source = "git+https://github.com/gschup/bevy_ggrs#928376df6b37f391ef6593e0355ba5a737ec1492"
 dependencies = [
  "bevy",
  "bytemuck",
@@ -932,6 +933,7 @@ dependencies = [
 [[package]]
 name = "bevy_rapier2d"
 version = "0.13.2"
+source = "git+https://github.com/dimforge/bevy_rapier#a7c7123485e1a5457a79c3628a2c2bff507ee049"
 dependencies = [
  "bevy",
  "bitflags",

@@ -509,10 +509,9 @@ pub fn increase_frame_count(
         }
     }
 
-    /*
     if frame_count.frame > 10 {
         exit.send(AppExit);
-    } */
+    }
 }
 
 pub fn apply_inputs(
