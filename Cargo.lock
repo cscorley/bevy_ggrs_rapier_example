@@ -747,7 +747,6 @@ dependencies = [
  "ggrs",
  "instant",
  "log",
- "serde",
 ]
 
 [[package]]

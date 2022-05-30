@@ -1,6 +1,7 @@
 mod checksum;
 mod log_plugin;
 
+use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
@@ -436,7 +437,6 @@ pub fn print(query: Query<(Entity, Option<&Name>)>) {
 }
 
 pub fn increase_frame_count(
-    mut commands: Commands,
     mut frame_count: ResMut<FrameCount>,
     mut last_frame_count: ResMut<LastFrameCount>,
     mut transforms: Query<&mut Transform, With<Rollback>>,
@@ -444,6 +444,7 @@ pub fn increase_frame_count(
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
     mut rapier: ResMut<RapierContext>,
     state: Res<GameState>,
+    mut exit: EventWriter<AppExit>,
 ) {
     let is_rollback = last_frame_count.frame > frame_count.frame;
 
@@ -479,8 +480,7 @@ pub fn increase_frame_count(
         );
     }
 
-    /*
-    if frame_count.frame > 10 {
+    if is_rollback {
         if let Ok(context) = bincode::deserialize::<RapierContext>(state.rapier_state.as_ref()) {
             //commands.insert_resource(context);
             // *rapier = context;
@@ -497,7 +497,10 @@ pub fn increase_frame_count(
             rapier.query_pipeline = context.query_pipeline;
         }
     }
-    */
+
+    if frame_count.frame > 10 {
+        exit.send(AppExit);
+    }
 }
 
 pub fn apply_inputs(
