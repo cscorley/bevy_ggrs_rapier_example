@@ -37,6 +37,8 @@ impl Plugin for LogPlugin {
             .unwrap();
         let subscriber = Registry::default().with(filter_layer);
 
+        // Allow us to output our logging for quick diffing.
+        // e.g., `cargo run > log1.log` and `cargo run > log2.log`
         let fmt_layer = tracing_subscriber::fmt::Layer::default()
             .without_time()
             .with_target(false)
