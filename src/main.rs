@@ -46,6 +46,26 @@ pub struct GGRSInput {
     pub inp: u8,
 }
 
+#[derive(Component)]
+pub struct DeterministicSpawn {
+    pub index: usize,
+}
+
+#[derive(Bundle)]
+pub struct DeterministicSpawnBundle {
+    pub spawn: DeterministicSpawn,
+    pub name: Name,
+}
+
+impl DeterministicSpawnBundle {
+    pub fn new(index: usize) -> Self {
+        Self {
+            spawn: DeterministicSpawn { index },
+            name: Name::new(format!("Deterministic Spawn {}", index)),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
 pub struct Player {
     pub handle: usize,
@@ -81,6 +101,22 @@ pub struct GameState {
 
 fn main() {
     let mut app = App::new();
+
+    // First thing's first:  we need to gain control of how our entities that
+    // will have physics interactions spawn.  This generates placeholders at
+    // the very start, ensuring the first thing this app does is have a pool
+    // of entities that we can select from later, before any plugins can spawn
+    // ahead of us, or in the middle of us.  These entities will be used to
+    // deterministically assign components we care about to them in the startup
+    // phase, and because they're deterministically assigned, we can serialize
+    // them in Rapier the same every time.
+    //
+    // Yes, this is kind of silly, but a handy workaround for now.
+    // For comparison, in release mode my context hash at init: 4591
+    let _ = app
+        .world
+        .spawn_batch((0..11).map(|index| DeterministicSpawnBundle::new(index)))
+        .collect::<Vec<Entity>>();
 
     // Something smaller so we can put these side by side
     let window_info = WindowDescriptor {
@@ -220,13 +256,14 @@ pub fn startup(
     mut rip: ResMut<RollbackIdProvider>,
     mut rapier: ResMut<RapierContext>,
     task_pool: Res<IoTaskPool>,
+    spawn_pool: Query<(Entity, &DeterministicSpawn)>,
 ) {
     // Add a bit more CCD
     rapier.integration_parameters.max_ccd_substeps = 2;
 
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         let rapier_checksum = fletcher16(&context_bytes);
-        log::info!("Context at init: {}", rapier_checksum);
+        log::info!("Context hash at init: {}", rapier_checksum);
 
         commands.insert_resource(GameState {
             rapier_state: Some(context_bytes),
@@ -245,10 +282,17 @@ pub fn startup(
     // deterministically.  There is also potential for bevy itself to return
     // queries to bevy_rapier that do not have the entities in the same order,
     // but in my experience with this example, that is not the case.  A patch to
-    // bevy_rapier would be required to ensure some sort of Entity order
-    // otherwise.
+    // bevy_rapier is probably required to ensure some sort of Entity order
+    // otherwise on the reading end, much like the below sorting of our spawn.
+
+    // Get our entities and sort them by the spawn component index
+    let mut sorted_spawn_pool: Vec<(Entity, &DeterministicSpawn)> = spawn_pool.iter().collect();
+    sorted_spawn_pool.sort_by_key(|e| e.1.index);
+    // Get the Entities in reverse for easy popping
+    let mut sorted_entity_pool: Vec<Entity> = sorted_spawn_pool.iter().map(|p| p.0).rev().collect();
+
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ball"))
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::ball(4.))
@@ -264,7 +308,7 @@ pub fn startup(
         .insert(Transform::from_xyz(0., 10., 0.));
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Player 1"))
         .insert(Player { handle: 0 })
         .insert(Rollback::new(rip.next_id()))
@@ -278,7 +322,7 @@ pub fn startup(
         .insert(Transform::from_xyz(-10., -50., 0.));
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Player 2"))
         .insert(Player { handle: 1 })
         .insert(Rollback::new(rip.next_id()))
@@ -296,7 +340,7 @@ pub fn startup(
     let overlapping_box_length = box_length + thickness;
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Floor"))
         .insert(Collider::cuboid(overlapping_box_length, thickness))
         .insert(LockedAxes::default())
@@ -306,7 +350,7 @@ pub fn startup(
         .insert(Transform::from_xyz(0., -box_length, 0.));
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Left Wall"))
         .insert(Collider::cuboid(thickness, overlapping_box_length))
         .insert(LockedAxes::default())
@@ -316,7 +360,7 @@ pub fn startup(
         .insert(Transform::from_xyz(-box_length, 0., 0.));
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Right Wall"))
         .insert(Collider::cuboid(thickness, overlapping_box_length))
         .insert(LockedAxes::default())
@@ -326,7 +370,7 @@ pub fn startup(
         .insert(Transform::from_xyz(box_length, 0., 0.));
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ceiling"))
         .insert(Collider::cuboid(overlapping_box_length, thickness))
         .insert(LockedAxes::default())
@@ -337,7 +381,7 @@ pub fn startup(
 
     let corner_position = box_length - thickness + 4.;
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Southeast Corner"))
         .insert(
             Collider::convex_hull(&[
@@ -354,7 +398,7 @@ pub fn startup(
         .insert(Transform::from_xyz(corner_position, -corner_position, 0.));
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Southwest Corner"))
         .insert(
             Collider::convex_hull(&[
@@ -371,7 +415,7 @@ pub fn startup(
         .insert(Transform::from_xyz(-corner_position, -corner_position, 0.));
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Northeast Corner"))
         .insert(
             Collider::convex_hull(&[
@@ -388,7 +432,7 @@ pub fn startup(
         .insert(Transform::from_xyz(corner_position, corner_position, 0.));
 
     commands
-        .spawn()
+        .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Northwest Corner"))
         .insert(
             Collider::convex_hull(&[
@@ -462,8 +506,8 @@ pub fn update_game_state(
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
-    mut exit: EventWriter<AppExit>,
     */
+    mut exit: EventWriter<AppExit>,
 ) {
     let is_rollback = last_frame_count.frame > game_state.frame;
     if is_rollback {
@@ -489,7 +533,7 @@ pub fn update_game_state(
         };
 
         log::info!(
-            "Context at start: {}\t{}",
+            "Context hash at start: {}\t{}",
             game_state.rapier_checksum,
             serialized_checksum
         );
@@ -543,7 +587,7 @@ pub fn update_game_state(
     // Useful for init testing to make sure our checksums always start the same.
     // Exit the app after a few frames
     if game_state.frame > 10 {
-        //exit.send(AppExit);
+        exit.send(AppExit);
     }
 }
 
@@ -557,7 +601,7 @@ pub fn save_game_state(mut game_state: ResMut<GameState>, rapier: Res<RapierCont
         game_state.rapier_checksum = fletcher16(&context_bytes);
         game_state.rapier_state = Some(context_bytes);
 
-        log::info!("Context at save: {}", game_state.rapier_checksum);
+        log::info!("Context hash at save: {}", game_state.rapier_checksum);
         log::info!("----- end frame {} -----", game_state.frame);
     }
 }
