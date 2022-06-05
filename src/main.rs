@@ -506,8 +506,8 @@ pub fn update_game_state(
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
-    */
     mut exit: EventWriter<AppExit>,
+    */
 ) {
     let is_rollback = last_frame_count.frame > game_state.frame;
     if is_rollback {
@@ -587,7 +587,7 @@ pub fn update_game_state(
     // Useful for init testing to make sure our checksums always start the same.
     // Exit the app after a few frames
     if game_state.frame > 10 {
-        exit.send(AppExit);
+        // exit.send(AppExit);
     }
 }
 
