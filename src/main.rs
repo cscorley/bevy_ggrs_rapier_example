@@ -6,7 +6,7 @@ use bevy::tasks::IoTaskPool;
 use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
 use bevy_rapier2d::prelude::*;
 use bytemuck::{Pod, Zeroable};
-use ggrs::{Config, PlayerType, SessionBuilder};
+use ggrs::{Config, NonBlockingSocket, P2PSession, PlayerType, SessionBuilder};
 use ggrs::{InputStatus, PlayerHandle};
 use matchbox_socket::WebRtcSocket;
 use rand::{thread_rng, Rng};
@@ -24,8 +24,10 @@ const MAX_PREDICTION: usize = 8;
 const INPUT_DELAY: usize = 2;
 
 // TODO: Buy gschup a coffee next time you get the chance
+const MATCHBOX_ADDR: &str = "wss://match.gschup.dev";
+
 // TODO: Maybe update this lobby_id so we don't test with each other :)
-const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
+const MATCHBOX_ROOM: &str = "bevy-ggrs-rapier-example";
 
 const INPUT_UP: u8 = 0b0001;
 const INPUT_DOWN: u8 = 0b0010;
@@ -449,7 +451,8 @@ pub fn startup(
         .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
 
     // Connect immediately.
-    let (socket, message_loop) = WebRtcSocket::new(MATCHBOX_ADDR);
+    let (socket, message_loop) =
+        WebRtcSocket::new(format!("{MATCHBOX_ADDR}/{MATCHBOX_ROOM}?next=2"));
     task_pool.spawn(message_loop).detach();
     commands.insert_resource(Some(socket));
 }
@@ -506,8 +509,8 @@ pub fn update_game_state(
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
-    mut exit: EventWriter<AppExit>,
     */
+    mut exit: EventWriter<AppExit>,
 ) {
     let is_rollback = last_frame_count.frame > game_state.frame;
     if is_rollback {
@@ -586,8 +589,8 @@ pub fn update_game_state(
 
     // Useful for init testing to make sure our checksums always start the same.
     // Exit the app after a few frames
-    if game_state.frame > 10 {
-        // exit.send(AppExit);
+    if game_state.frame > 1 {
+        //exit.send(AppExit);
     }
 }
 
@@ -653,14 +656,57 @@ pub fn apply_inputs(
     }
 }
 
-pub fn update_matchbox_socket(commands: Commands, mut socket_res: ResMut<Option<WebRtcSocket>>) {
+pub fn update_matchbox_socket(
+    mut commands: Commands,
+    mut socket_res: ResMut<Option<WebRtcSocket>>,
+    session: Option<Res<SessionType>>,
+    task_pool: Res<IoTaskPool>,
+) {
     if let Some(socket) = socket_res.as_mut() {
         socket.accept_new_connections();
         if socket.players().len() >= NUM_PLAYERS {
-            // take the socket
-            let socket = socket_res.as_mut().take().unwrap();
-            create_ggrs_session(commands, socket);
+            if let Some(st) = session {
+                // already have ggrs, this is the second round for our special boy
+                create_desync_session(commands, socket);
+
+                let socket = socket_res.as_mut().take().unwrap();
+            } else {
+                // take the socket
+                let socket = socket_res.as_mut().take().unwrap();
+                let mut ids = socket.connected_peers();
+                ids.push(socket.id().to_owned());
+                ids.sort();
+                let id = ids.first();
+
+                // Start another connection loop
+                let (socket2, message_loop) =
+                    WebRtcSocket::new(format!("{}/{:?}?next=2", MATCHBOX_ADDR, id));
+                task_pool.spawn(message_loop).detach();
+                commands.insert_resource(Some(socket2));
+
+                create_ggrs_session(commands, socket);
+            }
         }
+    }
+}
+
+fn create_desync_session(mut commands: Commands, socket: &mut WebRtcSocket) {
+    log::info!("created second session!");
+
+    for (i, player_type) in socket.players().iter().enumerate() {
+        log::info!("second session ids {}, type {:?}", i, player_type);
+    }
+
+    let msg = format!("greetings from {}", socket.id());
+    for addr in socket.connected_peers() {
+        let buf = bincode::serialize(&msg).unwrap();
+        let packet = buf.into_boxed_slice();
+        socket.send(packet, &addr);
+    }
+
+    for (id, packet) in socket.receive().into_iter() {
+        let msg = bincode::deserialize::<String>(&packet).unwrap();
+        log::info!("message from {}: {}", id, msg);
     }
 }
 
