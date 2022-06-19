@@ -659,7 +659,7 @@ pub fn apply_inputs(
             InputStatus::Disconnected => 0, // disconnected players do nothing
         };
 
-        if input > 0 {
+        if input > 0 || input_status == InputStatus::Disconnected {
             // Useful for desync observing
             log::info!("input {:?} from {}: {}", input_status, p.handle, input)
         }
