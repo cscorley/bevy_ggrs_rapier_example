@@ -19,6 +19,7 @@
     {
       "type": "cargo",
       "command": "run",
+      "args": ["--release"],
       "problemMatcher": ["$rustc"],
       "label": "cargo1",
       "isBackground": true,
@@ -30,6 +31,7 @@
     {
       "type": "cargo",
       "command": "run",
+      "args": ["--release"],
       "problemMatcher": ["$rustc"],
       "label": "cargo2",
       "isBackground": true,
