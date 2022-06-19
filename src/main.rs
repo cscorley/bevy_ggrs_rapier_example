@@ -106,7 +106,7 @@ pub struct GameState {
     pub rapier_checksum: u16,
 }
 
-type GameStateHistory = HashMap<u32, GameState>;
+type GameStateHistory = HashMap<u32, u16>;
 fn main() {
     let mut app = App::new();
 
@@ -281,7 +281,8 @@ pub fn startup(
         };
     }
 
-    let frame_checksums: GameStateHistory = [(0, game_state.clone())].iter().cloned().collect();
+    let frame_checksums: GameStateHistory =
+        [(0, game_state.rapier_checksum)].iter().cloned().collect();
     commands.insert_resource(frame_checksums);
     commands.insert_resource(game_state);
 
@@ -478,7 +479,7 @@ pub fn input(
     if let Some(max_key) = game_state_history.keys().max() {
         if let Some(max_game_state) = game_state_history.get(max_key) {
             last_confirmed_frame = *max_key;
-            rapier_checksum = max_game_state.rapier_checksum as u32;
+            rapier_checksum = *max_game_state as u32;
         }
     }
 
@@ -487,7 +488,7 @@ pub fn input(
         return GGRSInput {
             inp: 0,
             last_confirmed_frame,
-            rapier_checksum: rapier_checksum as u32,
+            rapier_checksum,
         };
     }
 
@@ -553,12 +554,8 @@ pub fn update_game_state(
     last_frame_count.frame = game_state.frame;
 
     if game_state.frame as i32 == session.confirmed_frame() {
-        if history.len() > 30 {
-            // Fuck it just clear it
-            history.clear();
-        }
-
-        history.insert(game_state.frame, game_state.as_ref().clone());
+        // TODO:  Clear first M when history reaches size N
+        history.insert(game_state.frame, game_state.rapier_checksum);
     }
 
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
@@ -651,7 +648,7 @@ pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
     color: Res<ClearColor>,
     inputs: Res<Vec<(GGRSInput, InputStatus)>>,
-    game_state_history: Res<GameStateHistory>,
+    history: Res<GameStateHistory>,
 ) {
     for (mut v, p) in query.iter_mut() {
         let input_status = inputs[p.handle].1;
@@ -674,13 +671,12 @@ pub fn apply_inputs(
 
         if let Some(frame_data) = frame_data {
             if frame_data.last_confirmed_frame > 5 {
-                if let Some(game_state) = game_state_history.get(&frame_data.last_confirmed_frame) {
-                    if game_state.rapier_checksum as u32 != frame_data.rapier_checksum {
+                if let Some(&game_state) = history.get(&frame_data.last_confirmed_frame) {
+                    if game_state as u32 != frame_data.rapier_checksum {
                         log::warn!(
-                            "Found mismatched frame data on frame {},{}. {} != {}",
-                            game_state.frame,
+                            "Found mismatched frame data on frame {}. {} != {}",
                             frame_data.last_confirmed_frame,
-                            game_state.rapier_checksum,
+                            game_state,
                             frame_data.rapier_checksum,
                         );
 
