@@ -45,7 +45,7 @@ pub struct ConnectData {
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 pub struct GGRSInput {
     // These are all the same size so there is no padding for Pod
-    pub inp: u32,
+    pub input: u32,
 
     // Alright time for a dumb idea that's definitely going to cause rollbacks!
     // This will contain the last confirmed frame's checksum.
@@ -474,6 +474,7 @@ pub fn input(
     game_state: Res<GameState>,
     game_state_history: Res<GameStateHistory>,
 ) -> GGRSInput {
+    let mut input: u32 = 0;
     let mut last_confirmed_frame = 0;
     let mut rapier_checksum = 0;
     if let Some(max_key) = game_state_history.keys().max() {
@@ -486,42 +487,40 @@ pub fn input(
     // Only allow input after frame 5 for init testing
     if game_state.frame <= 5 {
         return GGRSInput {
-            inp: 0,
+            input,
             last_confirmed_frame,
             rapier_checksum,
         };
     }
 
-    let mut inp: u32 = 0;
-
     if keyboard_input.pressed(KeyCode::W) {
-        inp |= INPUT_UP;
+        input |= INPUT_UP;
     }
     if keyboard_input.pressed(KeyCode::A) {
-        inp |= INPUT_LEFT;
+        input |= INPUT_LEFT;
     }
     if keyboard_input.pressed(KeyCode::S) {
-        inp |= INPUT_DOWN;
+        input |= INPUT_DOWN;
     }
     if keyboard_input.pressed(KeyCode::D) {
-        inp |= INPUT_RIGHT;
+        input |= INPUT_RIGHT;
     }
 
-    if inp == 0 && random.on {
+    if input == 0 && random.on {
         let mut rng = thread_rng();
         // Return a random input sometimes, or maybe nothing.
         // Helps to trigger input-based rollbacks from the unplayed side
         match rng.gen_range(0..6) {
-            0 => inp = INPUT_UP,
-            1 => inp = INPUT_LEFT,
-            2 => inp = INPUT_DOWN,
-            3 => inp = INPUT_RIGHT,
+            0 => input = INPUT_UP,
+            1 => input = INPUT_LEFT,
+            2 => input = INPUT_DOWN,
+            3 => input = INPUT_RIGHT,
             _ => (),
         }
     }
 
     GGRSInput {
-        inp,
+        input,
         last_confirmed_frame,
         rapier_checksum,
     }
@@ -653,8 +652,8 @@ pub fn apply_inputs(
     for (mut v, p) in query.iter_mut() {
         let input_status = inputs[p.handle].1;
         let input = match input_status {
-            InputStatus::Confirmed => inputs[p.handle].0.inp,
-            InputStatus::Predicted => inputs[p.handle].0.inp,
+            InputStatus::Confirmed => inputs[p.handle].0.input,
+            InputStatus::Predicted => inputs[p.handle].0.input,
             InputStatus::Disconnected => 0, // disconnected players do nothing
         };
 
