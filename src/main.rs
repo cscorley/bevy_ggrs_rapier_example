@@ -21,7 +21,7 @@ const FPS: usize = 60;
 const ROLLBACK_SYSTEMS: &str = "rollback_systems";
 const GAME_SYSTEMS: &str = "game_systems";
 const CHECKSUM_SYSTEMS: &str = "checksum_systems";
-const MAX_PREDICTION: usize = 8;
+const MAX_PREDICTION: usize = 12;
 const INPUT_DELAY: usize = 2;
 
 // TODO: Buy gschup a coffee next time you get the chance
@@ -310,7 +310,7 @@ pub fn startup(
         .insert(Collider::ball(4.))
         // Allowing rotations seems to increase the chance of a difference in
         // calculation (and thus cause desync).
-        .insert(LockedAxes::ROTATION_LOCKED)
+        .insert(LockedAxes::default())
         .insert(Restitution::coefficient(1.0))
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
