@@ -484,8 +484,8 @@ pub fn input(
         }
     }
 
-    // Only allow input after frame 5 for init testing
-    if game_state.frame <= 5 {
+    // Only allow input after frame 700 for init testing
+    if game_state.frame <= 700 {
         return GGRSInput {
             input,
             last_confirmed_frame,
@@ -506,6 +506,7 @@ pub fn input(
         input |= INPUT_RIGHT;
     }
 
+    /*
     if input == 0 && random.on {
         let mut rng = thread_rng();
         // Return a random input sometimes, or maybe nothing.
@@ -518,6 +519,7 @@ pub fn input(
             _ => (),
         }
     }
+    */
 
     GGRSInput {
         input,
@@ -615,8 +617,8 @@ pub fn update_game_state(
         }
     }
 
-    // Enable physics on frame 4
-    if game_state.frame > 3 && !config.physics_pipeline_active {
+    // Enable physics on frame 600
+    if game_state.frame > 600 && !config.physics_pipeline_active {
         config.physics_pipeline_active = true;
     }
 
