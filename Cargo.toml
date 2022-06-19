@@ -4,13 +4,6 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
-[profile.release]
-lto = "thin"
-strip = true
-opt-level = 3
-panic = "abort"
-codegen-units = 1
-
 [dependencies]
 bevy-inspector-egui = { version = "0.11.0" }
 bevy-inspector-egui-rapier = { version = "0.3", features =["rapier2d"] }
