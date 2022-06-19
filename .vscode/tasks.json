@@ -25,7 +25,8 @@
       "isBackground": true,
       "group": "build",
       "presentation": {
-        "group": "2ofthem"
+        "group": "2ofthem",
+        "clear": true
       }
     },
     {
@@ -37,7 +38,8 @@
       "isBackground": true,
       "group": "build",
       "presentation": {
-        "group": "2ofthem"
+        "group": "2ofthem",
+        "clear": true
       }
     }
   ]
