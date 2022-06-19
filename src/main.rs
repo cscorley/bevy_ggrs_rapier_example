@@ -233,7 +233,7 @@ fn main() {
         // Turn off query pipeline since this example does not use it
         query_pipeline_active: false,
 
-        // We will turn this on in frame 3, this helps when looking at init issues
+        // We will turn this on after "loading", this helps when looking at init issues
         physics_pipeline_active: false,
 
         ..default()
@@ -461,12 +461,14 @@ pub fn input(
     random: Res<RandomInput>,
     game_state: Res<GameState>,
 ) -> GGRSInput {
-    // Only allow input after frame 5 for init testing
-    if game_state.frame <= 5 {
-        return GGRSInput { inp: 0 };
-    }
-
     let mut inp: u8 = 0;
+
+    // Do not allow inputs for the first while.
+    // This 10 second "load screen" time helps with initial desync issues.  No
+    // idea why, but this tests well.
+    if game_state.frame <= 600 {
+        return GGRSInput { inp };
+    }
 
     if keyboard_input.pressed(KeyCode::W) {
         inp |= INPUT_UP;
@@ -579,8 +581,10 @@ pub fn update_game_state(
         }
     }
 
-    // Enable physics on frame 4
-    if game_state.frame > 3 && !config.physics_pipeline_active {
+    // Enable physics pipeline after awhile.
+    // This 10 second "load screen" time helps with initial desync issues.  No
+    // idea why, but this tests well.
+    if game_state.frame > 600 && !config.physics_pipeline_active {
         config.physics_pipeline_active = true;
     }
 
