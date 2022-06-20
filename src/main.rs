@@ -315,7 +315,7 @@ pub fn startup(
         .insert(Collider::ball(4.))
         // Allowing rotations seems to increase the chance of a difference in
         // calculation (and thus cause desync).
-        .insert(LockedAxes::default())
+        .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::coefficient(1.0))
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
