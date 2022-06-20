@@ -489,9 +489,9 @@ pub fn input(
         }
     }
 
-    // This 10 second "load screen" time helps with initial desync issues.  No
+    // This 1 second "load screen" time helps with initial desync issues.  No
     // idea why, but this tests well.
-    if game_state.frame <= 600 {
+    if game_state.frame <= 60 {
         return GGRSInput {
             input,
             last_confirmed_frame,
@@ -624,9 +624,9 @@ pub fn update_game_state(
     }
 
     // Enable physics pipeline after awhile.
-    // This 10 second "load screen" time helps with initial desync issues.  No
+    // This 1 second "load screen" time helps with initial desync issues.  No
     // idea why, but this tests well.
-    if game_state.frame > 600 && !config.physics_pipeline_active {
+    if game_state.frame > 60 && !config.physics_pipeline_active {
         config.physics_pipeline_active = true;
     }
 
