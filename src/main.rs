@@ -107,6 +107,8 @@ pub struct GameState {
 }
 
 type GameStateHistory = HashMap<u32, u16>;
+struct NetworkStatsTimer(Timer);
+
 fn main() {
     let mut app = App::new();
 
@@ -147,7 +149,10 @@ fn main() {
         .add_startup_system(startup)
         .add_system(keyboard_input)
         .add_system(bevy::input::system::exit_on_esc_system)
-        .add_system(update_matchbox_socket);
+        .add_system(update_matchbox_socket)
+        .insert_resource(NetworkStatsTimer(Timer::from_seconds(2.0, true)))
+        .add_system(print_network_stats_system)
+        .add_system(print_events_system);
 
     app.add_plugin(RapierDebugRenderPlugin::default());
     app.add_plugin(InspectableRapierPlugin);
@@ -241,7 +246,7 @@ fn main() {
         // Turn off query pipeline since this example does not use it
         query_pipeline_active: false,
 
-        // We will turn this on in frame 3, this helps when looking at init issues
+        // We will turn this on after "loading", this helps when looking at init issues
         physics_pipeline_active: false,
 
         ..default()
@@ -484,8 +489,9 @@ pub fn input(
         }
     }
 
-    // Only allow input after frame 700 for init testing
-    if game_state.frame <= 700 {
+    // This 10 second "load screen" time helps with initial desync issues.  No
+    // idea why, but this tests well.
+    if game_state.frame <= 600 {
         return GGRSInput {
             input,
             last_confirmed_frame,
@@ -617,7 +623,9 @@ pub fn update_game_state(
         }
     }
 
-    // Enable physics on frame 600
+    // Enable physics pipeline after awhile.
+    // This 10 second "load screen" time helps with initial desync issues.  No
+    // idea why, but this tests well.
     if game_state.frame > 600 && !config.physics_pipeline_active {
         config.physics_pipeline_active = true;
     }
@@ -766,6 +774,32 @@ fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
 
     // bevy_ggrs uses this to know when to start
     commands.insert_resource(SessionType::P2PSession);
+}
+
+fn print_events_system(session: Option<ResMut<P2PSession<GGRSConfig>>>) {
+    if let Some(mut session) = session {
+        for event in session.events() {
+            println!("GGRS Event: {:?}", event);
+        }
+    }
+}
+
+fn print_network_stats_system(
+    time: Res<Time>,
+    mut timer: ResMut<NetworkStatsTimer>,
+    session: Option<Res<P2PSession<GGRSConfig>>>,
+) {
+    // print only when timer runs out
+    if timer.0.tick(time.delta()).just_finished() {
+        if let Some(session) = session {
+            let num_players = session.num_players() as usize;
+            for i in 0..num_players {
+                if let Ok(stats) = session.network_stats(i) {
+                    println!("NetworkStats for player {}: {:?}", i, stats);
+                }
+            }
+        }
+    }
 }
 
 /// Computes the fletcher16 checksum, copied from wikipedia: <https://en.wikipedia.org/wiki/Fletcher%27s_checksum>
