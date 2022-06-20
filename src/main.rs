@@ -3,6 +3,7 @@ mod log_plugin;
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
+use bevy::utils::HashMap;
 use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
 use bevy_rapier2d::prelude::*;
 use bytemuck::{Pod, Zeroable};
@@ -20,17 +21,17 @@ const FPS: usize = 60;
 const ROLLBACK_SYSTEMS: &str = "rollback_systems";
 const GAME_SYSTEMS: &str = "game_systems";
 const CHECKSUM_SYSTEMS: &str = "checksum_systems";
-const MAX_PREDICTION: usize = 8;
+const MAX_PREDICTION: usize = 12;
 const INPUT_DELAY: usize = 2;
 
 // TODO: Buy gschup a coffee next time you get the chance
 // TODO: Maybe update this lobby_id so we don't test with each other :)
 const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
 
-const INPUT_UP: u8 = 0b0001;
-const INPUT_DOWN: u8 = 0b0010;
-const INPUT_LEFT: u8 = 0b0100;
-const INPUT_RIGHT: u8 = 0b1000;
+const INPUT_UP: u32 = 0b0001;
+const INPUT_DOWN: u32 = 0b0010;
+const INPUT_LEFT: u32 = 0b0100;
+const INPUT_RIGHT: u32 = 0b1000;
 
 pub struct LocalHandles {
     pub handles: Vec<PlayerHandle>,
@@ -43,7 +44,13 @@ pub struct ConnectData {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 pub struct GGRSInput {
-    pub inp: u8,
+    // These are all the same size so there is no padding for Pod
+    pub input: u32,
+
+    // Alright time for a dumb idea that's definitely going to cause rollbacks!
+    // This will contain the last confirmed frame's checksum.
+    pub last_confirmed_frame: u32,
+    pub rapier_checksum: u32,
 }
 
 #[derive(Component)]
@@ -91,7 +98,7 @@ impl Config for GGRSConfig {
     type Address = String;
 }
 
-#[derive(Default, Reflect, Hash, Component, PartialEq)]
+#[derive(Default, Reflect, Hash, Component, PartialEq, Clone)]
 #[reflect(Hash, Component, PartialEq)]
 pub struct GameState {
     pub rapier_state: Option<Vec<u8>>,
@@ -99,6 +106,7 @@ pub struct GameState {
     pub rapier_checksum: u16,
 }
 
+type GameStateHistory = HashMap<u32, u16>;
 struct NetworkStatsTimer(Timer);
 
 fn main() {
@@ -266,18 +274,22 @@ pub fn startup(
     // Add a bit more CCD
     rapier.integration_parameters.max_ccd_substeps = 2;
 
+    let mut game_state = GameState::default();
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         let rapier_checksum = fletcher16(&context_bytes);
         log::info!("Context hash at init: {}", rapier_checksum);
 
-        commands.insert_resource(GameState {
+        game_state = GameState {
             rapier_state: Some(context_bytes),
             rapier_checksum,
             ..default()
-        })
-    } else {
-        commands.insert_resource(GameState::default());
+        };
     }
+
+    let frame_checksums: GameStateHistory =
+        [(0, game_state.rapier_checksum)].iter().cloned().collect();
+    commands.insert_resource(frame_checksums);
+    commands.insert_resource(game_state);
 
     commands.insert_resource(RandomInput { on: true });
     commands.insert_resource(LastFrameCount::default());
@@ -465,50 +477,70 @@ pub fn input(
     _local_handles: Res<LocalHandles>,
     random: Res<RandomInput>,
     game_state: Res<GameState>,
+    game_state_history: Res<GameStateHistory>,
 ) -> GGRSInput {
-    let mut inp: u8 = 0;
+    let mut input: u32 = 0;
+    let mut last_confirmed_frame = 0;
+    let mut rapier_checksum = 0;
+    if let Some(max_key) = game_state_history.keys().max() {
+        if let Some(max_game_state) = game_state_history.get(max_key) {
+            last_confirmed_frame = *max_key;
+            rapier_checksum = *max_game_state as u32;
+        }
+    }
 
-    // Do not allow inputs for the first while.
-    // This 10 second "load screen" time helps with initial desync issues.  No
+    // This 1 second "load screen" time helps with initial desync issues.  No
     // idea why, but this tests well.
-    if game_state.frame <= 600 {
-        return GGRSInput { inp };
+    if game_state.frame <= 60 {
+        return GGRSInput {
+            input,
+            last_confirmed_frame,
+            rapier_checksum,
+        };
     }
 
     if keyboard_input.pressed(KeyCode::W) {
-        inp |= INPUT_UP;
+        input |= INPUT_UP;
     }
     if keyboard_input.pressed(KeyCode::A) {
-        inp |= INPUT_LEFT;
+        input |= INPUT_LEFT;
     }
     if keyboard_input.pressed(KeyCode::S) {
-        inp |= INPUT_DOWN;
+        input |= INPUT_DOWN;
     }
     if keyboard_input.pressed(KeyCode::D) {
-        inp |= INPUT_RIGHT;
+        input |= INPUT_RIGHT;
     }
 
-    if inp == 0 && random.on {
+    /*
+    if input == 0 && random.on {
         let mut rng = thread_rng();
         // Return a random input sometimes, or maybe nothing.
         // Helps to trigger input-based rollbacks from the unplayed side
         match rng.gen_range(0..6) {
-            0 => inp = INPUT_UP,
-            1 => inp = INPUT_LEFT,
-            2 => inp = INPUT_DOWN,
-            3 => inp = INPUT_RIGHT,
+            0 => input = INPUT_UP,
+            1 => input = INPUT_LEFT,
+            2 => input = INPUT_DOWN,
+            3 => input = INPUT_RIGHT,
             _ => (),
         }
     }
+    */
 
-    GGRSInput { inp }
+    GGRSInput {
+        input,
+        last_confirmed_frame,
+        rapier_checksum,
+    }
 }
 
 pub fn update_game_state(
     mut game_state: ResMut<GameState>,
+    mut history: ResMut<GameStateHistory>,
     mut last_frame_count: ResMut<LastFrameCount>,
     mut rapier: ResMut<RapierContext>,
     mut config: ResMut<RapierConfiguration>,
+    session: Res<P2PSession<GGRSConfig>>,
     /*
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
@@ -527,6 +559,11 @@ pub fn update_game_state(
 
     game_state.frame += 1;
     last_frame_count.frame = game_state.frame;
+
+    if game_state.frame as i32 == session.confirmed_frame() {
+        // TODO:  Clear first M when history reaches size N
+        history.insert(game_state.frame, game_state.rapier_checksum);
+    }
 
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         // Update existing checksum to current state
@@ -587,9 +624,9 @@ pub fn update_game_state(
     }
 
     // Enable physics pipeline after awhile.
-    // This 10 second "load screen" time helps with initial desync issues.  No
+    // This 1 second "load screen" time helps with initial desync issues.  No
     // idea why, but this tests well.
-    if game_state.frame > 600 && !config.physics_pipeline_active {
+    if game_state.frame > 60 && !config.physics_pipeline_active {
         config.physics_pipeline_active = true;
     }
 
@@ -616,20 +653,49 @@ pub fn save_game_state(mut game_state: ResMut<GameState>, rapier: Res<RapierCont
 }
 
 pub fn apply_inputs(
+    mut commands: Commands,
     mut query: Query<(&mut Velocity, &Player)>,
+    color: Res<ClearColor>,
     inputs: Res<Vec<(GGRSInput, InputStatus)>>,
+    history: Res<GameStateHistory>,
 ) {
     for (mut v, p) in query.iter_mut() {
         let input_status = inputs[p.handle].1;
         let input = match input_status {
-            InputStatus::Confirmed => inputs[p.handle].0.inp,
-            InputStatus::Predicted => inputs[p.handle].0.inp,
+            InputStatus::Confirmed => inputs[p.handle].0.input,
+            InputStatus::Predicted => inputs[p.handle].0.input,
             InputStatus::Disconnected => 0, // disconnected players do nothing
         };
 
-        if input > 0 {
+        if input > 0 || input_status == InputStatus::Disconnected {
             // Useful for desync observing
             log::info!("input {:?} from {}: {}", input_status, p.handle, input)
+        }
+
+        let frame_data = match input_status {
+            InputStatus::Confirmed => Some(inputs[p.handle].0),
+            InputStatus::Predicted => None,
+            InputStatus::Disconnected => None, // disconnected players do nothing
+        };
+
+        if let Some(frame_data) = frame_data {
+            if frame_data.last_confirmed_frame > 5 {
+                if let Some(&game_state) = history.get(&frame_data.last_confirmed_frame) {
+                    if game_state as u32 != frame_data.rapier_checksum {
+                        log::warn!(
+                            "Found mismatched frame data on frame {}. {} != {}",
+                            frame_data.last_confirmed_frame,
+                            game_state,
+                            frame_data.rapier_checksum,
+                        );
+
+                        commands.insert_resource(ClearColor(Color::RED));
+                    } else if color.0 == Color::RED {
+                        // actually fine now
+                        commands.insert_resource(ClearColor(Color::DARK_GRAY));
+                    }
+                }
+            }
         }
 
         let horizontal = if input & INPUT_LEFT != 0 && input & INPUT_RIGHT == 0 {
