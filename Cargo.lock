@@ -524,13 +524,13 @@ dependencies = [
 
 [[package]]
 name = "bevy-inspector-egui-rapier"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99c1a09051c00fecc97388de44fb2dbdba2cbe77a59c222848da0a064d953af6"
+checksum = "28252b5958ec6d31b7308cc1a70c0b3999fbe6f7a66dece2afc17c0dfcb0e69a"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
- "bevy_rapier2d",
+ "bevy_rapier2d 0.14.1",
 ]
 
 [[package]]
@@ -590,27 +590,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
-]
-
-[[package]]
-name = "bevy_asset_loader"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5200da755326dce03c414e53d0ac3cd3242a6ddc9a89ac3e43cf5f776587d429"
-dependencies = [
- "bevy",
- "bevy_asset_loader_derive",
-]
-
-[[package]]
-name = "bevy_asset_loader_derive"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5560b79168910c1264911388ee10cca7315f0cf3b04615eebbac515bdc54af3"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -757,9 +736,8 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy-inspector-egui-rapier",
- "bevy_asset_loader",
  "bevy_ggrs",
- "bevy_rapier2d",
+ "bevy_rapier2d 0.15.0",
  "bincode",
  "bytemuck",
  "ggrs",
@@ -932,14 +910,28 @@ dependencies = [
 
 [[package]]
 name = "bevy_rapier2d"
-version = "0.13.2"
-source = "git+https://github.com/dimforge/bevy_rapier#a7c7123485e1a5457a79c3628a2c2bff507ee049"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b54239dabc74ecc982a4dfcfa464326284303d6a85627d4a20e449263013fb9b"
 dependencies = [
  "bevy",
  "bitflags",
  "log",
  "nalgebra",
- "rapier2d",
+ "rapier2d 0.13.0",
+]
+
+[[package]]
+name = "bevy_rapier2d"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7eac8f9d432682b0d865fd382cc65f637b2d1d31b3ca5a05cb0e7f81a7f7eb3"
+dependencies = [
+ "bevy",
+ "bitflags",
+ "log",
+ "nalgebra",
+ "rapier2d 0.14.0",
  "serde",
 ]
 
@@ -4127,9 +4119,29 @@ checksum = "63e935c45e09cc6dcf00d2f0b2d630a58f4095320223d47fc68918722f0538b6"
 
 [[package]]
 name = "rapier2d"
-version = "0.12.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c575f233b1c105e17366b9d2edb82ab1bb4c95d55d22741c20e2e1c0aa6932a3"
+checksum = "43f7f18a9281f4c4176754437a768e1b7124ce5729060c8743db670f7ebb3c43"
+dependencies = [
+ "approx",
+ "arrayvec 0.7.2",
+ "bit-vec",
+ "bitflags",
+ "crossbeam",
+ "downcast-rs",
+ "nalgebra",
+ "num-derive",
+ "num-traits",
+ "parry2d",
+ "rustc-hash",
+ "simba",
+]
+
+[[package]]
+name = "rapier2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84d7e798266018ec9194a6ca931ae6520c0bf5f7dbdbcb5f1d8bb0d9c075ea24"
 dependencies = [
  "approx",
  "arrayvec 0.7.2",
@@ -4138,7 +4150,6 @@ dependencies = [
  "crossbeam",
  "downcast-rs",
  "indexmap",
- "instant",
  "nalgebra",
  "num-derive",
  "num-traits",
@@ -4990,9 +5001,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-tracy"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23a42311a35ed976d72f359de43e9fe028ec9d9f1051c4c52bd05a4f66ff3cbf"
+checksum = "ed3ebef1f9f0d00aaa29239537effef65b82c56040c680f540fc6cedfac7b230"
 dependencies = [
  "tracing-core",
  "tracing-subscriber",
@@ -5012,9 +5023,9 @@ dependencies = [
 
 [[package]]
 name = "tracy-client"
-version = "0.13.2"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42ebfe7a24c18b5ba86d8920c124b41b942352f863fbe0c84d3d63428fa1860f"
+checksum = "f901ea566c34f5fdc987962495ebfea20c18d781e271967edcc0f9897e339815"
 dependencies = [
  "loom",
  "once_cell",

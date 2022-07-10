@@ -6,23 +6,28 @@ license = "MIT"
 
 [dependencies]
 bevy-inspector-egui = { version = "0.11.0" }
-bevy-inspector-egui-rapier = { version = "0.3", features =["rapier2d"] }
-bevy_asset_loader = "0.10.0"
+bevy-inspector-egui-rapier = { version = "0.4.0", features = ["rapier2d"] }
 bevy = "0.7.0"
-bytemuck = {version="1.7.3", features= ["derive"]}
-ggrs = { git = "https://github.com/gschup/ggrs", features=["sync-send"]}
+bytemuck = { version = "1.7.3", features = ["derive"] }
+ggrs = { git = "https://github.com/gschup/ggrs", features = ["sync-send"] }
 bevy_ggrs = { git = "https://github.com/gschup/bevy_ggrs" }
-matchbox_socket = { git = "https://github.com/johanhelsing/matchbox", features = ["ggrs-socket"] }
+matchbox_socket = { git = "https://github.com/johanhelsing/matchbox", features = [
+    "ggrs-socket",
+] }
 log = "0.4"
-# Merged changes in this PR https://github.com/dimforge/bevy_rapier/pull/169
-bevy_rapier2d = { git= "https://github.com/dimforge/bevy_rapier", features = [ "enhanced-determinism", "serde-serialize" ] }
-bincode="1.3.3"
-tracing-subscriber = {version = "0.3.1", features = ["registry", "env-filter"]}
-tracing-tracy = { version = "0.9.0" }
+bevy_rapier2d = { version = "0.15.0", features = [
+    "enhanced-determinism",
+    "serde-serialize",
+] }
+bincode = "1.3.3"
+tracing-subscriber = { version = "0.3.1", features = [
+    "registry",
+    "env-filter",
+] }
+tracing-tracy = { version = "0.10.0" }
 tracing-log = "0.1.2"
 tracing-error = { version = "0.2.0" }
 rand = "0.8.5"
 
 [patch.crates-io]
 ggrs = { git = "https://github.com/gschup/ggrs" } # Force matchbox_socket to same version
-bevy_rapier2d = { git = "https://github.com/dimforge/bevy_rapier" } # bevy-inspector-egui-rapier
