@@ -22,6 +22,9 @@ const GAME_SYSTEMS: &str = "game_systems";
 const CHECKSUM_SYSTEMS: &str = "checksum_systems";
 const MAX_PREDICTION: usize = 8;
 const INPUT_DELAY: usize = 2;
+// Having a "load screen" time helps with initial desync issues.  No idea why,
+// but this tests well.
+const LOAD_SECONDS: usize = 3;
 
 // TODO: Buy gschup a coffee next time you get the chance
 // TODO: Maybe update this lobby_id so we don't test with each other :)
@@ -232,7 +235,7 @@ fn main() {
             substeps: 1,
         },
 
-        // This should work with gravity, too
+        // This should work with gravity, too.  It is fun for testing.
         // gravity: Vec2::ZERO,
 
         // Turn off query pipeline since this example does not use it
@@ -264,7 +267,7 @@ pub fn startup(
     spawn_pool: Query<(Entity, &DeterministicSpawn)>,
 ) {
     // Add a bit more CCD
-    rapier.integration_parameters.max_ccd_substeps = 2;
+    rapier.integration_parameters.max_ccd_substeps = 5;
 
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         let rapier_checksum = fletcher16(&context_bytes);
@@ -296,6 +299,14 @@ pub fn startup(
     // Get the Entities in reverse for easy popping
     let mut sorted_entity_pool: Vec<Entity> = sorted_spawn_pool.iter().map(|p| p.0).rev().collect();
 
+    // This will allow our ball to bounce around a bit nicer.
+    // It is not necessary for this demo.
+    let mut ball_restitution = Restitution::coefficient(0.5);
+    ball_restitution.combine_rule = CoefficientCombineRule::Max;
+
+    let mut ball_friction = Friction::coefficient(0.0);
+    ball_friction.combine_rule = CoefficientCombineRule::Min;
+
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ball"))
@@ -304,7 +315,8 @@ pub fn startup(
         // Allowing rotations seems to increase the chance of a difference in
         // calculation (and thus cause desync).
         .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(Restitution::coefficient(1.0))
+        .insert(ball_restitution)
+        .insert(ball_friction)
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
@@ -469,9 +481,7 @@ pub fn input(
     let mut inp: u8 = 0;
 
     // Do not allow inputs for the first while.
-    // This 10 second "load screen" time helps with initial desync issues.  No
-    // idea why, but this tests well.
-    if game_state.frame <= 600 {
+    if game_state.frame <= (FPS * LOAD_SECONDS) as u32 {
         return GGRSInput { inp };
     }
 
@@ -587,9 +597,7 @@ pub fn update_game_state(
     }
 
     // Enable physics pipeline after awhile.
-    // This 10 second "load screen" time helps with initial desync issues.  No
-    // idea why, but this tests well.
-    if game_state.frame > 600 && !config.physics_pipeline_active {
+    if game_state.frame > (FPS * LOAD_SECONDS) as u32 && !config.physics_pipeline_active {
         config.physics_pipeline_active = true;
     }
 
