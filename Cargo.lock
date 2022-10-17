@@ -951,8 +951,7 @@ dependencies = [
 [[package]]
 name = "bevy_rapier2d"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8e0108d726673a74936b61d392253315a58d20a1ae5622f9663fd35683cc368"
+source = "git+https://github.com/cscorley/bevy_rapier?branch=transform-and-sort-0.8#6fc202b423507caa4a840ddad1e2863ba9494245"
 dependencies = [
  "bevy",
  "bitflags",
@@ -5642,7 +5641,7 @@ dependencies = [
  "js-sys",
  "log",
  "naga",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
  "raw-window-handle",
  "smallvec",
  "wasm-bindgen",
@@ -5668,7 +5667,7 @@ dependencies = [
  "fxhash",
  "log",
  "naga",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
  "profiling",
  "raw-window-handle",
  "smallvec",
@@ -5705,7 +5704,7 @@ dependencies = [
  "metal",
  "naga",
  "objc",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
  "profiling",
  "range-alloc",
  "raw-window-handle",

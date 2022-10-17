@@ -15,7 +15,9 @@ matchbox_socket = { git = "https://github.com/johanhelsing/matchbox", features =
     "ggrs-socket",
 ] }
 log = "0.4"
-bevy_rapier2d = { version = "0.17.0", features = [
+#bevy_rapier2d = { version = "0.17.0", features = [
+# This branch must be used until dimforge/bevy_rapier PRs #233 and #261 are merged
+bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "transform-and-sort-0.8", features = [
     "enhanced-determinism",
     "serde-serialize",
 ] }
@@ -28,6 +30,3 @@ tracing-tracy = { version = "0.10.0" }
 tracing-log = "0.1.2"
 tracing-error = { version = "0.2.0" }
 rand = "0.8.5"
-
-[patch.crates-io]
-# ggrs = { git = "https://github.com/gschup/ggrs" } # Force matchbox_socket to same version
