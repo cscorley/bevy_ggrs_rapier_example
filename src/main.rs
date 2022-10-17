@@ -1,6 +1,5 @@
 mod log_plugin;
 
-use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
@@ -24,7 +23,7 @@ const MAX_PREDICTION: usize = 8;
 const INPUT_DELAY: usize = 2;
 // Having a "load screen" time helps with initial desync issues.  No idea why,
 // but this tests well.
-// There is also a bug when a rollback to frame 0 occurs if two clients have high latency.
+// There is also sometimes a bug when a rollback to frame 0 occurs if two clients have high latency.
 const LOAD_SECONDS: usize = 3;
 
 // How far back we'll keep frame hash info for our other player
@@ -35,7 +34,6 @@ const DESYNC_MAX_FRAMES: usize = 30;
 const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
 
 // These are just 16 bit for bit-packing alignment in the input struct
-
 const INPUT_UP: u16 = 0b0001;
 const INPUT_DOWN: u16 = 0b0010;
 const INPUT_LEFT: u16 = 0b0100;
@@ -53,11 +51,24 @@ pub struct ConnectData {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 pub struct GGRSInput {
-    pub inp: u16,
+    // The input from our player
+    pub input: u16,
+
+    // Desync detection
     pub last_confirmed_hash: u16,
     pub last_confirmed_frame: i32,
+    // Ok, so I know what you're thinking:
+    // > "That's not input!"
+    // Well, you're right, and we're going to abuse the existing socket to also
+    // communicate about the last confirmed frame we saw and what was the hash
+    // of the physics state.  This allows us to detect desync.  This could also
+    // use a new socket, but who wants to hole punch twice?  I have been working
+    // on a GGRS branch (linked below) that introduces a new message type, but
+    // it is not ready.  However, input-packing works good enough for now.
+    // https://github.com/cscorley/ggrs/tree/arbitrary-messages-0.8
 }
 
+// Metadata we need to store about frames we've seen and the checksum
 #[derive(Default, Hash, Component, PartialEq, Eq, Debug)]
 pub struct FrameHash {
     pub frame: i32,
@@ -73,12 +84,19 @@ pub struct FrameHash {
     pub validated: bool,
 }
 
+// A collection of confirmed frame hashes we've seen locally
 #[derive(Default, Hash, Component, PartialEq, Eq)]
 pub struct FrameHashes(pub [FrameHash; DESYNC_MAX_FRAMES]);
 
+// A collection of confirmed frame hashes we've received from our other player
+// This only works for 1v1.  This would have to be extended to consider all
+// remotes in larger scenarios (I accept pull requests!)
 #[derive(Default, Hash, Component, PartialEq, Eq)]
 pub struct RxFrameHashes(pub [FrameHash; DESYNC_MAX_FRAMES]);
 
+/// A marker component for spawning first thing when the app launches.  This
+/// just contains some arbitrary data, it actually isn't critical (it's used to
+/// sort, but we could also use [`Entity`])
 #[derive(Component)]
 pub struct DeterministicSpawn {
     pub index: usize,
@@ -99,17 +117,22 @@ impl DeterministicSpawnBundle {
     }
 }
 
+/// GGRS player handle, we use this to associate GGRS handles back to our [`Entity`]
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
 pub struct Player {
     pub handle: usize,
 }
 
+/// Easy way to detect rollbacks
 #[derive(Default, Reflect, Hash, Component, PartialEq)]
 #[reflect(Hash, Component, PartialEq)]
 pub struct LastFrameCount {
     pub frame: u32,
 }
 
+/// Controls whether our opponent will inject random inputs while inactive.
+/// This is useful for testing rollbacks locally and can be toggled off with `r`
+/// and `t`.
 #[derive(Default, Reflect, Hash, Component, PartialEq)]
 #[reflect(Hash, Component, PartialEq)]
 pub struct RandomInput {
@@ -124,6 +147,8 @@ impl Config for GGRSConfig {
     type Address = String;
 }
 
+/// Our GameState, which will be rolled back and we will use to restore our
+/// physics state.
 #[derive(Default, Reflect, Hash, Component, PartialEq)]
 #[reflect(Hash, Component, PartialEq)]
 pub struct GameState {
@@ -132,6 +157,7 @@ pub struct GameState {
     pub rapier_checksum: u16,
 }
 
+/// Not necessary for this demo, but useful debug output sometimes.
 struct NetworkStatsTimer(Timer);
 
 fn main() {
@@ -179,6 +205,7 @@ fn main() {
         .add_system(print_network_stats_system)
         .add_system(print_events_system);
 
+    // We don't really draw anything ourselves, just show us the raw physics colliders
     app.add_plugin(RapierDebugRenderPlugin::default());
     app.add_plugin(InspectableRapierPlugin);
     app.add_plugin(WorldInspectorPlugin::default());
@@ -193,18 +220,22 @@ fn main() {
         .register_rollback_type::<Sleeping>()
         .with_rollback_schedule(
             Schedule::default()
-                // It is imperative that this executes first, always.  Yes, I know about .after()
+                // It is imperative that this executes first, always.  Yes, I know about `.after()`.
+                // I'm putting this here in case you end up adding any `Commands` to this step,
+                // which I think must flush at all costs before we enter the regular game logic
                 .with_stage(
                     ROLLBACK_SYSTEMS,
                     SystemStage::parallel().with_system(update_game_state),
                 )
-                // Add our game logic and systems here.  If it impacts what the
-                // physics engine should consider, do it here.
+                // Add our game logic and systems here.
+                // If it impacts what the physics engine should consider, do it here.
                 .with_stage_after(
                     ROLLBACK_SYSTEMS,
                     GAME_SYSTEMS,
                     SystemStage::parallel()
                         .with_system(apply_inputs)
+                        // The `frame_validator` relies on the execution of `apply_inputs` and must come after.
+                        // It could happen anywhere else, I just stuck it here to be clear.
                         .with_system(frame_validator.after(apply_inputs)),
                 )
                 // The next 3 stages are all bevy_rapier stages.  Best to leave these in order.
@@ -253,7 +284,8 @@ fn main() {
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugin(
         RapierPhysicsPlugin::<NoUserData>::default()
-            // Scale of 8 since that's the factor size of our ball & players
+            // Scale of 8 since that's the factor size of our ball & players.
+            // This choice was made kind of arbitrarily.
             .with_physics_scale(8.)
             // This allows us to hook in the systems ourselves above in the GGRS schedule
             .with_default_system_setup(false),
@@ -277,6 +309,7 @@ fn main() {
         physics_pipeline_active: false,
 
         // Do not check internal structures for transform changes
+        // WARNING:  This is something on my branch only!  This is in bevy_rapier PR #261
         force_update_from_transform_changes: true,
 
         ..default()
@@ -285,6 +318,7 @@ fn main() {
     app.run();
 }
 
+/// Non-game input.  Just chucking this into the stack carelessly.
 pub fn keyboard_input(mut commands: Commands, keys: Res<Input<KeyCode>>) {
     if keys.just_pressed(KeyCode::R) {
         commands.insert_resource(RandomInput { on: true });
@@ -300,9 +334,10 @@ pub fn startup(
     mut rapier: ResMut<RapierContext>,
     spawn_pool: Query<(Entity, &DeterministicSpawn)>,
 ) {
-    // Add a bit more CCD
+    // Add a bit more CCD.  This is simply my preference and should not impact the Rapier/GGRS combo.
     rapier.integration_parameters.max_ccd_substeps = 5;
 
+    // Insert our game state, already setup with the (hopefully) empty RapierContext
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         let rapier_checksum = fletcher16(&context_bytes);
         log::info!("Context hash at init: {}", rapier_checksum);
@@ -316,6 +351,7 @@ pub fn startup(
         commands.insert_resource(GameState::default());
     }
 
+    // A bunch of stuff for our wacky systems :-)
     commands.insert_resource(RandomInput { on: true });
     commands.insert_resource(FrameHashes::default());
     commands.insert_resource(RxFrameHashes::default());
@@ -326,9 +362,10 @@ pub fn startup(
     // Everything must be spawned in the same order, every time,
     // deterministically.  There is also potential for bevy itself to return
     // queries to bevy_rapier that do not have the entities in the same order,
-    // but in my experience with this example, that is not the case.  A patch to
-    // bevy_rapier is probably required to ensure some sort of Entity order
+    // but in my experience with this example, that happens somewhat rarely.  A
+    // patch to bevy_rapier is required to ensure some sort of Entity order
     // otherwise on the reading end, much like the below sorting of our spawn.
+    // WARNING:  This is something on my branch only!  This is in bevy_rapier PR #233
 
     // Get our entities and sort them by the spawn component index
     let mut sorted_spawn_pool: Vec<(Entity, &DeterministicSpawn)> = spawn_pool.iter().collect();
@@ -490,6 +527,7 @@ pub fn startup(
         .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
 
     // Connect immediately.
+    // This starts to poll the matchmaking service for our other player to connect.
     let (socket, message_loop) = WebRtcSocket::new(MATCHBOX_ADDR);
     let task_pool = IoTaskPool::get();
     task_pool.spawn(message_loop).detach();
@@ -499,14 +537,30 @@ pub fn startup(
 pub fn input(
     _handle: In<PlayerHandle>, // Required by bevy_ggrs
     keyboard_input: Res<Input<KeyCode>>,
-    _local_handles: Res<LocalHandles>,
     random: Res<RandomInput>,
-    game_state: Res<GameState>,
+    rapier_config: Res<RapierConfiguration>,
     mut hashes: ResMut<FrameHashes>,
 ) -> GGRSInput {
-    let mut inp: u16 = 0;
+    let mut input: u16 = 0;
     let mut last_confirmed_frame = ggrs::NULL_FRAME;
     let mut last_confirmed_hash = 0;
+
+    // Do not do anything until physics are live
+    if !rapier_config.physics_pipeline_active {
+        return GGRSInput {
+            input,
+            last_confirmed_frame,
+            last_confirmed_hash,
+        };
+    }
+
+    // Find a hash that we haven't sent yet.
+    // This probably seems like overkill but we have to track a bunch anyway, we
+    // might as well do our due diligence and inform our opponent of every hash
+    // we have This may mean we ship them out of order.  The important thing is
+    // we determine the desync *eventually* because that match is pretty much
+    // invalidated without a state synchronization mechanism (which GGRS/GGPO
+    // does not have out of the box.)
     for frame_hash in hashes.0.iter_mut() {
         if frame_hash.confirmed && !frame_hash.sent {
             info!("Sending data {:?}", frame_hash);
@@ -516,43 +570,34 @@ pub fn input(
         }
     }
 
-    // Do not allow inputs for the first while.
-    if game_state.frame <= (FPS * LOAD_SECONDS) as u32 {
-        return GGRSInput {
-            inp,
-            last_confirmed_frame,
-            last_confirmed_hash,
-        };
-    }
-
     if keyboard_input.pressed(KeyCode::W) {
-        inp |= INPUT_UP;
+        input |= INPUT_UP;
     }
     if keyboard_input.pressed(KeyCode::A) {
-        inp |= INPUT_LEFT;
+        input |= INPUT_LEFT;
     }
     if keyboard_input.pressed(KeyCode::S) {
-        inp |= INPUT_DOWN;
+        input |= INPUT_DOWN;
     }
     if keyboard_input.pressed(KeyCode::D) {
-        inp |= INPUT_RIGHT;
+        input |= INPUT_RIGHT;
     }
 
-    if inp == 0 && random.on {
+    if input == 0 && random.on {
         let mut rng = thread_rng();
         // Return a random input sometimes, or maybe nothing.
         // Helps to trigger input-based rollbacks from the unplayed side
         match rng.gen_range(0..6) {
-            0 => inp = INPUT_UP,
-            1 => inp = INPUT_LEFT,
-            2 => inp = INPUT_DOWN,
-            3 => inp = INPUT_RIGHT,
+            0 => input = INPUT_UP,
+            1 => input = INPUT_LEFT,
+            2 => input = INPUT_DOWN,
+            3 => input = INPUT_RIGHT,
             _ => (),
         }
     }
 
     GGRSInput {
-        inp,
+        input,
         last_confirmed_frame,
         last_confirmed_hash,
     }
@@ -567,8 +612,8 @@ pub fn update_game_state(
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
-    mut exit: EventWriter<AppExit>,
     */
+    mut exit: EventWriter<bevy::app::AppExit>,
 ) {
     let is_rollback = last_frame_count.frame > game_state.frame;
     if is_rollback {
@@ -580,8 +625,14 @@ pub fn update_game_state(
     }
 
     game_state.frame += 1;
+    // I know this seems silly at first glance, but after we know we've entered
+    // a rollback once, we have to resimulate all frames back to where we left
+    // off... and there may be additional rollbacks that happen during that!
     last_frame_count.frame = game_state.frame;
 
+    // Serialize our physics state for hashing.  We can likely avoid this work during rollbacks.
+    // This should not be necessary for this demo to work, as we will do the real checksum
+    // during `save_game_state` at the end of the pipeline.
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         // Update existing checksum to current state
         game_state.rapier_checksum = fletcher16(&context_bytes);
@@ -614,8 +665,10 @@ pub fn update_game_state(
            }
     */
 
-    // Only restore our state if we are in a rollback.  This *shouldn't* matter,
-    // but does save us a step every frame.
+    // Only restore our state if we are in a rollback.  This step is *critical*.
+    // Only doing this during rollbacks saves us a step every frame.
+    // You can also test that desync detection is working by disabling:
+    // if false {
     if is_rollback {
         if let Some(state_context) = game_state.rapier_state.as_ref() {
             if let Ok(context) = bincode::deserialize::<RapierContext>(state_context) {
@@ -648,7 +701,7 @@ pub fn update_game_state(
     // Useful for init testing to make sure our checksums always start the same.
     // Exit the app after a few frames
     if game_state.frame > 10 {
-        // exit.send(AppExit);
+        // exit.send(bevy::app::AppExit);
     }
 }
 
@@ -667,6 +720,10 @@ pub fn save_game_state(
         game_state.rapier_checksum = fletcher16(&context_bytes);
         game_state.rapier_state = Some(context_bytes);
 
+        // If our session has begun in earnest (it should have) we can store off
+        // the checksum information into our hash history.  We'll use this
+        // information to compare whenever the opponent sends over their
+        // confirmed frame data.
         if let Some(session) = session {
             if let Some(frame_hash) = hashes
                 .0
@@ -677,8 +734,9 @@ pub fn save_game_state(
                 frame_hash.sent = false;
                 frame_hash.validated = false;
                 let confirmed_frame = session.confirmed_frame();
-                log::info!("confirmed frame: {:?}", confirmed_frame);
                 frame_hash.confirmed = frame_hash.frame == confirmed_frame;
+
+                log::info!("confirmed frame: {:?}", confirmed_frame);
                 log::info!("Stored frame hash at save: {:?}", frame_hash);
             }
         }
@@ -688,10 +746,16 @@ pub fn save_game_state(
     }
 }
 
+/// Our desync detector!
+/// Validates the hashes we've received so far against the ones we've calculated ourselves.
+/// If there is a difference, panic.  Your game will probably want to handle this more gracefully.
 pub fn frame_validator(mut hashes: ResMut<FrameHashes>, mut rx_hashes: ResMut<RxFrameHashes>) {
     for (i, rx) in rx_hashes.0.iter_mut().enumerate() {
-        if rx.frame > 0 && rx.sent && !rx.validated {
+        // Check every confirmed frame that has not been validated
+        if rx.frame > 0 && rx.confirmed && !rx.validated {
+            // Get that same frame in our buffer
             if let Some(sx) = hashes.0.get_mut(i) {
+                // Make sure it's the exact same frame and also confirmed and not yet validated
                 if sx.frame == rx.frame && sx.confirmed && !sx.validated {
                     assert_eq!(
                         sx.rapier_checksum, rx.rapier_checksum,
@@ -699,6 +763,7 @@ pub fn frame_validator(mut hashes: ResMut<FrameHashes>, mut rx_hashes: ResMut<Rx
                         sx, rx
                     );
                     log::info!("Frame validated {:?}", sx.frame);
+                    // Set both as validated
                     sx.validated = true;
                     rx.validated = true;
                 }
@@ -717,28 +782,32 @@ pub fn apply_inputs(
         let (game_input, input_status) = inputs[p.handle];
         // Check the desync for this player if they're not a local handle
         if !local_handles.handles.contains(&p.handle) {
+            // Did they send us some goodies?
             if game_input.last_confirmed_frame > 0 {
                 log::info!("Got frame data {:?}", game_input);
                 if let Some(frame_hash) = hashes
                     .0
                     .get_mut((game_input.last_confirmed_frame as usize) % DESYNC_MAX_FRAMES)
                 {
+                    // Only update this local data if the frame is new-to-us.
+                    // We don't want to overwrite any existing validated status
+                    // unless the frame is replacing what is already in the buffer.
                     if frame_hash.frame != game_input.last_confirmed_frame {
                         frame_hash.frame = game_input.last_confirmed_frame;
                         frame_hash.rapier_checksum = game_input.last_confirmed_hash;
+                        frame_hash.validated = false;
                         // TODO: store this in different struct
                         // if we get it, it has been confirmed and sent
                         frame_hash.confirmed = true;
                         frame_hash.sent = true;
-                        frame_hash.validated = false;
                     }
                 }
             }
         }
 
         let input = match input_status {
-            InputStatus::Confirmed => game_input.inp,
-            InputStatus::Predicted => game_input.inp,
+            InputStatus::Confirmed => game_input.input,
+            InputStatus::Predicted => game_input.input,
             InputStatus::Disconnected => 0, // disconnected players do nothing
         };
 
