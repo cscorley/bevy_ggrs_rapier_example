@@ -29,9 +29,14 @@ const LOAD_SECONDS: usize = 3;
 // How far back we'll keep frame hash info for our other player
 const DESYNC_MAX_FRAMES: usize = 30;
 
-// TODO: Buy gschup a coffee next time you get the chance
-// TODO: Maybe update this lobby_id so we don't test with each other :)
+// TODO: Hey you!!! You, the one reading this!  Yes, you.
+// Buy gschup a coffee next time you get the chance.
+// https://ko-fi.com/gschup
+// They host this match making service for us to use FOR FREE.
+// It has been an incredibly useful thing I don't have to think about while working
+// and learning how to implement this stuff and I guarantee it will be for you too.
 const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
+// TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
 
 // These are just 16 bit for bit-packing alignment in the input struct
 const INPUT_UP: u16 = 0b0001;
@@ -39,15 +44,13 @@ const INPUT_DOWN: u16 = 0b0010;
 const INPUT_LEFT: u16 = 0b0100;
 const INPUT_RIGHT: u16 = 0b1000;
 
+/// Local handles, this should just be 1 entry in this demo, but you may end up wanting to implement 2v2
 #[derive(Default)]
 pub struct LocalHandles {
     pub handles: Vec<PlayerHandle>,
 }
 
-pub struct ConnectData {
-    pub lobby_id: String,
-}
-
+/// Our primary data struct; what players send to one another
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 pub struct GGRSInput {
@@ -68,10 +71,23 @@ pub struct GGRSInput {
     // https://github.com/cscorley/ggrs/tree/arbitrary-messages-0.8
 }
 
-// Metadata we need to store about frames we've seen and the checksum
+/// The main GGRS configuration type
+#[derive(Debug)]
+pub struct GGRSConfig;
+impl Config for GGRSConfig {
+    type Input = GGRSInput;
+    // bevy_ggrs doesn't really use State, so just make this a small whatever
+    type State = u8;
+    type Address = String;
+}
+
+// Metadata we need to store about frames we've seen and their checksum
 #[derive(Default, Hash, Component, PartialEq, Eq, Debug)]
 pub struct FrameHash {
+    /// The frame number for this metadata
     pub frame: i32,
+
+    /// The checksum of the Rapier physics state for the frame.  I use this term interchangably with `hash`, sorry.
     pub rapier_checksum: u16,
 
     /// Confirmed by GGRS
@@ -139,14 +155,6 @@ pub struct RandomInput {
     pub on: bool,
 }
 
-#[derive(Debug)]
-pub struct GGRSConfig;
-impl Config for GGRSConfig {
-    type Input = GGRSInput;
-    type State = u8;
-    type Address = String;
-}
-
 /// Our GameState, which will be rolled back and we will use to restore our
 /// physics state.
 #[derive(Default, Reflect, Hash, Component, PartialEq)]
@@ -203,12 +211,11 @@ fn main() {
         .add_system(update_matchbox_socket)
         .insert_resource(NetworkStatsTimer(Timer::from_seconds(2.0, true)))
         .add_system(print_network_stats_system)
-        .add_system(print_events_system);
-
-    // We don't really draw anything ourselves, just show us the raw physics colliders
-    app.add_plugin(RapierDebugRenderPlugin::default());
-    app.add_plugin(InspectableRapierPlugin);
-    app.add_plugin(WorldInspectorPlugin::default());
+        .add_system(print_events_system)
+        // We don't really draw anything ourselves, just show us the raw physics colliders
+        .add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(InspectableRapierPlugin)
+        .add_plugin(WorldInspectorPlugin::default());
 
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
@@ -236,6 +243,7 @@ fn main() {
                         .with_system(apply_inputs)
                         // The `frame_validator` relies on the execution of `apply_inputs` and must come after.
                         // It could happen anywhere else, I just stuck it here to be clear.
+                        // If this is causing your game to quit, you have a bug!
                         .with_system(frame_validator.after(apply_inputs)),
                 )
                 // The next 3 stages are all bevy_rapier stages.  Best to leave these in order.
@@ -272,7 +280,7 @@ fn main() {
         .build(&mut app);
 
     // Be sure to setup all four stages.
-    // We don't despawn in this example, but you may want to :)
+    // We don't despawn in this example, but you may want to :-)
     app.add_stage_before(
         CoreStage::Last,
         PhysicsStages::DetectDespawn,
@@ -612,8 +620,8 @@ pub fn update_game_state(
     mut transforms: Query<&mut Transform, With<Rollback>>,
     mut velocities: Query<&mut Velocity, With<Rollback>>,
     mut sleepings: Query<&mut Sleeping, With<Rollback>>,
-    */
     mut exit: EventWriter<bevy::app::AppExit>,
+    */
 ) {
     let is_rollback = last_frame_count.frame > game_state.frame;
     if is_rollback {
@@ -757,6 +765,7 @@ pub fn frame_validator(mut hashes: ResMut<FrameHashes>, mut rx_hashes: ResMut<Rx
             if let Some(sx) = hashes.0.get_mut(i) {
                 // Make sure it's the exact same frame and also confirmed and not yet validated
                 if sx.frame == rx.frame && sx.confirmed && !sx.validated {
+                    // If this is causing your game to exit, you have a bug!
                     assert_eq!(
                         sx.rapier_checksum, rx.rapier_checksum,
                         "Failed checksum checks {:?} != {:?}",
@@ -805,6 +814,7 @@ pub fn apply_inputs(
             }
         }
 
+        // On to the boring stuff
         let input = match input_status {
             InputStatus::Confirmed => game_input.input,
             InputStatus::Predicted => game_input.input,
