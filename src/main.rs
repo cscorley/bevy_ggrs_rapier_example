@@ -24,17 +24,24 @@ const MAX_PREDICTION: usize = 8;
 const INPUT_DELAY: usize = 2;
 // Having a "load screen" time helps with initial desync issues.  No idea why,
 // but this tests well.
+// There is also a bug when a rollback to frame 0 occurs if two clients have high latency.
 const LOAD_SECONDS: usize = 3;
+
+// How far back we'll keep frame hash info for our other player
+const DESYNC_MAX_FRAMES: usize = 30;
 
 // TODO: Buy gschup a coffee next time you get the chance
 // TODO: Maybe update this lobby_id so we don't test with each other :)
 const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
 
-const INPUT_UP: u8 = 0b0001;
-const INPUT_DOWN: u8 = 0b0010;
-const INPUT_LEFT: u8 = 0b0100;
-const INPUT_RIGHT: u8 = 0b1000;
+// These are just 16 bit for bit-packing alignment in the input struct
 
+const INPUT_UP: u16 = 0b0001;
+const INPUT_DOWN: u16 = 0b0010;
+const INPUT_LEFT: u16 = 0b0100;
+const INPUT_RIGHT: u16 = 0b1000;
+
+#[derive(Default)]
 pub struct LocalHandles {
     pub handles: Vec<PlayerHandle>,
 }
@@ -46,8 +53,31 @@ pub struct ConnectData {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 pub struct GGRSInput {
-    pub inp: u8,
+    pub inp: u16,
+    pub last_confirmed_hash: u16,
+    pub last_confirmed_frame: i32,
 }
+
+#[derive(Default, Hash, Component, PartialEq, Eq, Debug)]
+pub struct FrameHash {
+    pub frame: i32,
+    pub rapier_checksum: u16,
+
+    /// Confirmed by GGRS
+    pub confirmed: bool,
+
+    /// Sent to others
+    pub sent: bool,
+
+    /// Validated from other player
+    pub validated: bool,
+}
+
+#[derive(Default, Hash, Component, PartialEq, Eq)]
+pub struct FrameHashes(pub [FrameHash; DESYNC_MAX_FRAMES]);
+
+#[derive(Default, Hash, Component, PartialEq, Eq)]
+pub struct RxFrameHashes(pub [FrameHash; DESYNC_MAX_FRAMES]);
 
 #[derive(Component)]
 pub struct DeterministicSpawn {
@@ -173,7 +203,9 @@ fn main() {
                 .with_stage_after(
                     ROLLBACK_SYSTEMS,
                     GAME_SYSTEMS,
-                    SystemStage::parallel().with_system(apply_inputs),
+                    SystemStage::parallel()
+                        .with_system(apply_inputs)
+                        .with_system(frame_validator.after(apply_inputs)),
                 )
                 // The next 3 stages are all bevy_rapier stages.  Best to leave these in order.
                 .with_stage_after(
@@ -282,7 +314,10 @@ pub fn startup(
     }
 
     commands.insert_resource(RandomInput { on: true });
+    commands.insert_resource(FrameHashes::default());
+    commands.insert_resource(RxFrameHashes::default());
     commands.insert_resource(LastFrameCount::default());
+    commands.insert_resource(LocalHandles::default());
     commands.spawn_bundle(Camera2dBundle::default());
 
     // Everything must be spawned in the same order, every time,
@@ -477,12 +512,27 @@ pub fn input(
     _local_handles: Res<LocalHandles>,
     random: Res<RandomInput>,
     game_state: Res<GameState>,
+    mut hashes: ResMut<FrameHashes>,
 ) -> GGRSInput {
-    let mut inp: u8 = 0;
+    let mut inp: u16 = 0;
+    let mut last_confirmed_frame = ggrs::NULL_FRAME;
+    let mut last_confirmed_hash = 0;
+    for frame_hash in hashes.0.iter_mut() {
+        if frame_hash.confirmed && !frame_hash.sent {
+            info!("Sending data {:?}", frame_hash);
+            last_confirmed_frame = frame_hash.frame;
+            last_confirmed_hash = frame_hash.rapier_checksum;
+            frame_hash.sent = true;
+        }
+    }
 
     // Do not allow inputs for the first while.
     if game_state.frame <= (FPS * LOAD_SECONDS) as u32 {
-        return GGRSInput { inp };
+        return GGRSInput {
+            inp,
+            last_confirmed_frame,
+            last_confirmed_hash,
+        };
     }
 
     if keyboard_input.pressed(KeyCode::W) {
@@ -511,7 +561,11 @@ pub fn input(
         }
     }
 
-    GGRSInput { inp }
+    GGRSInput {
+        inp,
+        last_confirmed_frame,
+        last_confirmed_hash,
+    }
 }
 
 pub fn update_game_state(
@@ -608,7 +662,12 @@ pub fn update_game_state(
     }
 }
 
-pub fn save_game_state(mut game_state: ResMut<GameState>, rapier: Res<RapierContext>) {
+pub fn save_game_state(
+    mut game_state: ResMut<GameState>,
+    rapier: Res<RapierContext>,
+    mut hashes: ResMut<FrameHashes>,
+    session: Option<Res<P2PSession<GGRSConfig>>>,
+) {
     // This serializes our context every frame.  It's not great, but works to
     // integrate the two plugins.  To do less of it, we would need to change
     // bevy_ggrs to serialize arbitrary structs like this one in addition to
@@ -618,20 +677,78 @@ pub fn save_game_state(mut game_state: ResMut<GameState>, rapier: Res<RapierCont
         game_state.rapier_checksum = fletcher16(&context_bytes);
         game_state.rapier_state = Some(context_bytes);
 
+        if let Some(session) = session {
+            if let Some(frame_hash) = hashes
+                .0
+                .get_mut((game_state.frame as usize) % DESYNC_MAX_FRAMES)
+            {
+                frame_hash.frame = game_state.frame as i32;
+                frame_hash.rapier_checksum = game_state.rapier_checksum;
+                frame_hash.sent = false;
+                frame_hash.validated = false;
+                let confirmed_frame = session.confirmed_frame();
+                log::info!("confirmed frame: {:?}", confirmed_frame);
+                frame_hash.confirmed = frame_hash.frame == confirmed_frame;
+                log::info!("Stored frame hash at save: {:?}", frame_hash);
+            }
+        }
+
         log::info!("Context hash at save: {}", game_state.rapier_checksum);
         log::info!("----- end frame {} -----", game_state.frame);
+    }
+}
+
+pub fn frame_validator(mut hashes: ResMut<FrameHashes>, mut rx_hashes: ResMut<RxFrameHashes>) {
+    for (i, rx) in rx_hashes.0.iter_mut().enumerate() {
+        if rx.frame > 0 && rx.sent && !rx.validated {
+            if let Some(sx) = hashes.0.get_mut(i) {
+                if sx.frame == rx.frame && sx.confirmed && !sx.validated {
+                    assert_eq!(
+                        sx.rapier_checksum, rx.rapier_checksum,
+                        "Failed checksum checks {:?} != {:?}",
+                        sx, rx
+                    );
+                    log::info!("Frame validated {:?}", sx.frame);
+                    sx.validated = true;
+                    rx.validated = true;
+                }
+            }
+        }
     }
 }
 
 pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
     inputs: Res<Vec<(GGRSInput, InputStatus)>>,
+    mut hashes: ResMut<RxFrameHashes>,
+    local_handles: Res<LocalHandles>,
 ) {
     for (mut v, p) in query.iter_mut() {
-        let input_status = inputs[p.handle].1;
+        let (game_input, input_status) = inputs[p.handle];
+        // Check the desync for this player if they're not a local handle
+        if !local_handles.handles.contains(&p.handle) {
+            if game_input.last_confirmed_frame > 0 {
+                log::info!("Got frame data {:?}", game_input);
+                if let Some(frame_hash) = hashes
+                    .0
+                    .get_mut((game_input.last_confirmed_frame as usize) % DESYNC_MAX_FRAMES)
+                {
+                    if frame_hash.frame != game_input.last_confirmed_frame {
+                        frame_hash.frame = game_input.last_confirmed_frame;
+                        frame_hash.rapier_checksum = game_input.last_confirmed_hash;
+                        // TODO: store this in different struct
+                        // if we get it, it has been confirmed and sent
+                        frame_hash.confirmed = true;
+                        frame_hash.sent = true;
+                        frame_hash.validated = false;
+                    }
+                }
+            }
+        }
+
         let input = match input_status {
-            InputStatus::Confirmed => inputs[p.handle].0.inp,
-            InputStatus::Predicted => inputs[p.handle].0.inp,
+            InputStatus::Confirmed => game_input.inp,
+            InputStatus::Predicted => game_input.inp,
             InputStatus::Disconnected => 0, // disconnected players do nothing
         };
 
