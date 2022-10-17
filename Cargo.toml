@@ -15,7 +15,12 @@ matchbox_socket = { git = "https://github.com/johanhelsing/matchbox", features =
     "ggrs-socket",
 ] }
 log = "0.4"
-bevy_rapier2d = { version = "0.17.0", features = [
+#bevy_rapier2d = { version = "0.17.0", features = [
+#    "enhanced-determinism",
+#    "serde-serialize",
+#] }
+# This branch must be used until merged
+bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "transform-and-sort-0.8", features = [
     "enhanced-determinism",
     "serde-serialize",
 ] }

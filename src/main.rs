@@ -276,6 +276,9 @@ fn main() {
         // We will turn this on after "loading", this helps when looking at init issues
         physics_pipeline_active: false,
 
+        // Do not check internal structures for transform changes
+        force_update_from_transform_changes: true,
+
         ..default()
     });
 
@@ -333,24 +336,11 @@ pub fn startup(
     // Get the Entities in reverse for easy popping
     let mut sorted_entity_pool: Vec<Entity> = sorted_spawn_pool.iter().map(|p| p.0).rev().collect();
 
-    // This will allow our ball to bounce around a bit nicer.
-    // It is not necessary for this demo.
-    let mut ball_restitution = Restitution::coefficient(0.5);
-    ball_restitution.combine_rule = CoefficientCombineRule::Max;
-
-    let mut ball_friction = Friction::coefficient(0.0);
-    ball_friction.combine_rule = CoefficientCombineRule::Min;
-
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ball"))
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::ball(4.))
-        // Allowing rotations seems to increase the chance of a difference in
-        // calculation (and thus cause desync).
-        .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(ball_restitution)
-        .insert(ball_friction)
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())

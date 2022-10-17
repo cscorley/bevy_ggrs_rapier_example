@@ -533,7 +533,7 @@ checksum = "53f1c2a525d27d3281890e9a4d39200a3f6b055c1f66b2be2305bcccd887239f"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
- "bevy_rapier2d 0.16.2",
+ "bevy_rapier2d 0.16.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -746,7 +746,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy-inspector-egui-rapier",
  "bevy_ggrs",
- "bevy_rapier2d 0.17.0",
+ "bevy_rapier2d 0.16.2 (git+https://github.com/cscorley/bevy_rapier?branch=transform-and-sort-0.8)",
  "bincode",
  "bytemuck",
  "ggrs",
@@ -945,20 +945,19 @@ dependencies = [
  "bitflags",
  "log",
  "nalgebra",
- "rapier2d 0.14.0",
+ "rapier2d",
 ]
 
 [[package]]
 name = "bevy_rapier2d"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8e0108d726673a74936b61d392253315a58d20a1ae5622f9663fd35683cc368"
+version = "0.16.2"
+source = "git+https://github.com/cscorley/bevy_rapier?branch=transform-and-sort-0.8#e3d2e3dc831c4e195b0c7a94c8f733e16373fb82"
 dependencies = [
  "bevy",
  "bitflags",
  "log",
  "nalgebra",
- "rapier2d 0.15.0",
+ "rapier2d",
  "serde",
 ]
 
@@ -3973,27 +3972,6 @@ dependencies = [
  "bitflags",
  "downcast-rs",
  "either",
- "nalgebra",
- "num-derive",
- "num-traits",
- "rustc-hash",
- "simba",
- "slab",
- "smallvec",
- "spade",
-]
-
-[[package]]
-name = "parry2d"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee29895c34e7dae094c8ea355af4f6fb3f3ab6b76ea037b49bc51bf5972d2464"
-dependencies = [
- "approx",
- "arrayvec 0.7.2",
- "bitflags",
- "downcast-rs",
- "either",
  "indexmap",
  "nalgebra",
  "num-derive",
@@ -4270,31 +4248,11 @@ dependencies = [
  "bitflags",
  "crossbeam",
  "downcast-rs",
- "nalgebra",
- "num-derive",
- "num-traits",
- "parry2d 0.9.0",
- "rustc-hash",
- "simba",
-]
-
-[[package]]
-name = "rapier2d"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daba24ce52b431f4bb3ac798f457db72de6b6cc4718201227a466d81ba705637"
-dependencies = [
- "approx",
- "arrayvec 0.7.2",
- "bit-vec",
- "bitflags",
- "crossbeam",
- "downcast-rs",
  "indexmap",
  "nalgebra",
  "num-derive",
  "num-traits",
- "parry2d 0.10.0",
+ "parry2d",
  "rustc-hash",
  "serde",
  "simba",
