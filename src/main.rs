@@ -143,7 +143,7 @@ fn main() {
         .add_plugin(log_plugin::LogPlugin)
         .add_startup_system(startup)
         .add_system(keyboard_input)
-        .add_system(bevy::input::system::exit_on_esc_system)
+        .add_system(bevy::window::close_on_esc)
         .add_system(update_matchbox_socket)
         .insert_resource(NetworkStatsTimer(Timer::from_seconds(2.0, true)))
         .add_system(print_network_stats_system)
@@ -263,7 +263,6 @@ pub fn startup(
     mut commands: Commands,
     mut rip: ResMut<RollbackIdProvider>,
     mut rapier: ResMut<RapierContext>,
-    task_pool: Res<IoTaskPool>,
     spawn_pool: Query<(Entity, &DeterministicSpawn)>,
 ) {
     // Add a bit more CCD
@@ -284,7 +283,7 @@ pub fn startup(
 
     commands.insert_resource(RandomInput { on: true });
     commands.insert_resource(LastFrameCount::default());
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    commands.spawn_bundle(Camera2dBundle::default());
 
     // Everything must be spawned in the same order, every time,
     // deterministically.  There is also potential for bevy itself to return
@@ -467,6 +466,7 @@ pub fn startup(
 
     // Connect immediately.
     let (socket, message_loop) = WebRtcSocket::new(MATCHBOX_ADDR);
+    let task_pool = IoTaskPool::get();
     task_pool.spawn(message_loop).detach();
     commands.insert_resource(Some(socket));
 }
