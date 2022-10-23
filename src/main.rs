@@ -51,7 +51,7 @@ pub struct LocalHandles {
 
 /// Our primary data struct; what players send to one another
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
 pub struct GGRSInput {
     // The input from our player
     pub input: u16,
@@ -146,13 +146,13 @@ impl DeterministicSpawnBundle {
 }
 
 /// GGRS player handle, we use this to associate GGRS handles back to our [`Entity`]
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Component)]
 pub struct Player {
     pub handle: usize,
 }
 
 /// Easy way to detect rollbacks
-#[derive(Default, Reflect, Hash, Component, PartialEq)]
+#[derive(Default, Reflect, Hash, Component, PartialEq, Eq)]
 #[reflect(Hash, Component, PartialEq)]
 pub struct LastFrameCount {
     pub frame: Frame,
@@ -161,7 +161,7 @@ pub struct LastFrameCount {
 /// Controls whether our opponent will inject random inputs while inactive.
 /// This is useful for testing rollbacks locally and can be toggled off with `r`
 /// and `t`.
-#[derive(Default, Reflect, Hash, Component, PartialEq)]
+#[derive(Default, Reflect, Hash, Component, PartialEq, Eq)]
 #[reflect(Hash, Component, PartialEq)]
 pub struct RandomInput {
     pub on: bool,
@@ -169,7 +169,7 @@ pub struct RandomInput {
 
 /// Our GameState, which will be rolled back and we will use to restore our
 /// physics state.
-#[derive(Default, Reflect, Hash, Component, PartialEq)]
+#[derive(Default, Reflect, Hash, Component, PartialEq, Eq)]
 #[reflect(Hash, Component, PartialEq)]
 pub struct GameState {
     pub rapier_state: Option<Vec<u8>>,
@@ -196,7 +196,7 @@ fn main() {
     // For comparison, in release mode my context hash at init: 4591
     let _ = app
         .world
-        .spawn_batch((0..11).map(|index| DeterministicSpawnBundle::new(index)))
+        .spawn_batch((0..11).map(DeterministicSpawnBundle::new))
         .collect::<Vec<Entity>>();
 
     // Something smaller so we can put these side by side
@@ -807,22 +807,20 @@ pub fn apply_inputs(
     for (mut v, p) in query.iter_mut() {
         let (game_input, input_status) = inputs[p.handle];
         // Check the desync for this player if they're not a local handle
-        if !local_handles.handles.contains(&p.handle) {
-            // Did they send us some goodies?
-            if game_input.last_confirmed_frame > 0 {
-                log::info!("Got frame data {:?}", game_input);
-                if let Some(frame_hash) = hashes
-                    .0
-                    .get_mut((game_input.last_confirmed_frame as usize) % DESYNC_MAX_FRAMES)
-                {
-                    // Only update this local data if the frame is new-to-us.
-                    // We don't want to overwrite any existing validated status
-                    // unless the frame is replacing what is already in the buffer.
-                    if frame_hash.frame != game_input.last_confirmed_frame {
-                        frame_hash.frame = game_input.last_confirmed_frame;
-                        frame_hash.rapier_checksum = game_input.last_confirmed_hash;
-                        frame_hash.validated = false;
-                    }
+        // Did they send us some goodies?
+        if !local_handles.handles.contains(&p.handle) && game_input.last_confirmed_frame > 0 {
+            log::info!("Got frame data {:?}", game_input);
+            if let Some(frame_hash) = hashes
+                .0
+                .get_mut((game_input.last_confirmed_frame as usize) % DESYNC_MAX_FRAMES)
+            {
+                // Only update this local data if the frame is new-to-us.
+                // We don't want to overwrite any existing validated status
+                // unless the frame is replacing what is already in the buffer.
+                if frame_hash.frame != game_input.last_confirmed_frame {
+                    frame_hash.frame = game_input.last_confirmed_frame;
+                    frame_hash.rapier_checksum = game_input.last_confirmed_hash;
+                    frame_hash.validated = false;
                 }
             }
         }
