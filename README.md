@@ -17,3 +17,11 @@ Keys
 - WASD movement
 - R turn on random movement for this window
 - T turn off random movement for this window
+
+Testing
+
+- You can test rollbacks locally
+  - On Linux, I use the included `slowmode.sh` script.
+    - Run with root/sudo.
+    - Run again to restore.
+  - On Windows, I use clumsy https://jagt.github.io/clumsy/
