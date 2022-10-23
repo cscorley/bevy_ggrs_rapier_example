@@ -20,9 +20,11 @@ const GAME_SYSTEMS: &str = "game_systems";
 const CHECKSUM_SYSTEMS: &str = "checksum_systems";
 const MAX_PREDICTION: usize = 8;
 const INPUT_DELAY: usize = 2;
+
 // Having a "load screen" time helps with initial desync issues.  No idea why,
-// but this tests well.
-// There is also sometimes a bug when a rollback to frame 0 occurs if two clients have high latency.
+// but this tests well. There is also sometimes a bug when a rollback to frame 0
+// occurs if two clients have high latency.  Having this in place at least for 1
+// frame helps prevent that :-)
 const LOAD_SECONDS: usize = 3;
 
 // How far back we'll keep frame hash info for our other player
