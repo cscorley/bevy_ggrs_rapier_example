@@ -5,8 +5,7 @@ use bevy::tasks::IoTaskPool;
 use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
 use bevy_rapier2d::prelude::*;
 use bytemuck::{Pod, Zeroable};
-use ggrs::{Config, P2PSession, PlayerType, SessionBuilder};
-use ggrs::{InputStatus, PlayerHandle};
+use ggrs::{Config, Frame, InputStatus, P2PSession, PlayerHandle, PlayerType, SessionBuilder};
 use matchbox_socket::WebRtcSocket;
 use rand::{thread_rng, Rng};
 
@@ -59,7 +58,7 @@ pub struct GGRSInput {
 
     // Desync detection
     pub last_confirmed_hash: u16,
-    pub last_confirmed_frame: i32,
+    pub last_confirmed_frame: Frame,
     // Ok, so I know what you're thinking:
     // > "That's not input!"
     // Well, you're right, and we're going to abuse the existing socket to also
@@ -81,22 +80,35 @@ impl Config for GGRSConfig {
     type Address = String;
 }
 
-// Metadata we need to store about frames we've seen and their checksum
+/// Metadata we need to store about frames we've rendered locally
 #[derive(Default, Hash, Component, PartialEq, Eq, Debug)]
 pub struct FrameHash {
     /// The frame number for this metadata
-    pub frame: i32,
+    pub frame: Frame,
 
     /// The checksum of the Rapier physics state for the frame.  I use this term interchangably with `hash`, sorry.
     pub rapier_checksum: u16,
 
-    /// Confirmed by GGRS
+    /// Has been confirmed by GGRS
     pub confirmed: bool,
 
-    /// Sent to others
+    /// Has been sent by us to other players
     pub sent: bool,
 
-    /// Validated from other player
+    /// Has been validated by us against other player
+    pub validated: bool,
+}
+
+/// Metadata we need to store about frames we've received from other player
+#[derive(Default, Hash, Component, PartialEq, Eq, Debug)]
+pub struct RxFrameHash {
+    /// The frame number for this metadata
+    pub frame: Frame,
+
+    /// The checksum of the Rapier physics state for the frame.  I use this term interchangably with `hash`, sorry.
+    pub rapier_checksum: u16,
+
+    /// Has been validated by us against other player
     pub validated: bool,
 }
 
@@ -108,7 +120,7 @@ pub struct FrameHashes(pub [FrameHash; DESYNC_MAX_FRAMES]);
 // This only works for 1v1.  This would have to be extended to consider all
 // remotes in larger scenarios (I accept pull requests!)
 #[derive(Default, Hash, Component, PartialEq, Eq)]
-pub struct RxFrameHashes(pub [FrameHash; DESYNC_MAX_FRAMES]);
+pub struct RxFrameHashes(pub [RxFrameHash; DESYNC_MAX_FRAMES]);
 
 /// A marker component for spawning first thing when the app launches.  This
 /// just contains some arbitrary data, it actually isn't critical (it's used to
@@ -143,7 +155,7 @@ pub struct Player {
 #[derive(Default, Reflect, Hash, Component, PartialEq)]
 #[reflect(Hash, Component, PartialEq)]
 pub struct LastFrameCount {
-    pub frame: u32,
+    pub frame: Frame,
 }
 
 /// Controls whether our opponent will inject random inputs while inactive.
@@ -161,7 +173,7 @@ pub struct RandomInput {
 #[reflect(Hash, Component, PartialEq)]
 pub struct GameState {
     pub rapier_state: Option<Vec<u8>>,
-    pub frame: u32,
+    pub frame: Frame,
     pub rapier_checksum: u16,
 }
 
@@ -702,7 +714,7 @@ pub fn update_game_state(
     }
 
     // Enable physics pipeline after awhile.
-    if game_state.frame > (FPS * LOAD_SECONDS) as u32 && !config.physics_pipeline_active {
+    if game_state.frame > (FPS * LOAD_SECONDS) as i32 && !config.physics_pipeline_active {
         config.physics_pipeline_active = true;
     }
 
@@ -742,6 +754,11 @@ pub fn save_game_state(
                 frame_hash.sent = false;
                 frame_hash.validated = false;
                 let confirmed_frame = session.confirmed_frame();
+                // TODO:  can this be <= ?
+                // depends on if confirmed frame is always at highest value or is
+                // increased as frames are re-simulated up to that point.
+                // I think all we get out of that is more validations?
+                // Need to check impl of confirmed_frame to make sure it's worthwhile
                 frame_hash.confirmed = frame_hash.frame == confirmed_frame;
 
                 log::info!("confirmed frame: {:?}", confirmed_frame);
@@ -760,7 +777,7 @@ pub fn save_game_state(
 pub fn frame_validator(mut hashes: ResMut<FrameHashes>, mut rx_hashes: ResMut<RxFrameHashes>) {
     for (i, rx) in rx_hashes.0.iter_mut().enumerate() {
         // Check every confirmed frame that has not been validated
-        if rx.frame > 0 && rx.confirmed && !rx.validated {
+        if rx.frame > 0 && !rx.validated {
             // Get that same frame in our buffer
             if let Some(sx) = hashes.0.get_mut(i) {
                 // Make sure it's the exact same frame and also confirmed and not yet validated
@@ -805,10 +822,6 @@ pub fn apply_inputs(
                         frame_hash.frame = game_input.last_confirmed_frame;
                         frame_hash.rapier_checksum = game_input.last_confirmed_hash;
                         frame_hash.validated = false;
-                        // TODO: store this in different struct
-                        // if we get it, it has been confirmed and sent
-                        frame_hash.confirmed = true;
-                        frame_hash.sent = true;
                     }
                 }
             }
