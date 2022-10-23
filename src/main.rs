@@ -686,10 +686,14 @@ pub fn update_game_state(
     */
 
     // Only restore our state if we are in a rollback.  This step is *critical*.
-    // Only doing this during rollbacks saves us a step every frame.
+    // Only doing this during rollbacks saves us a step every frame.  Here, we
+    // also do not allow rollback to frame 0.  Physics state is already correct
+    // in this case.  This prevents lagged clients from getting immediate desync
+    // and is entirely a hack since we don't enable physics until later anyway.
+    //
     // You can also test that desync detection is working by disabling:
     // if false {
-    if is_rollback {
+    if is_rollback && game_state.frame > 1 {
         if let Some(state_context) = game_state.rapier_state.as_ref() {
             if let Ok(context) = bincode::deserialize::<RapierContext>(state_context) {
                 // commands.insert_resource(context);
