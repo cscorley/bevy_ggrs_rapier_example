@@ -20,9 +20,11 @@ const GAME_SYSTEMS: &str = "game_systems";
 const CHECKSUM_SYSTEMS: &str = "checksum_systems";
 const MAX_PREDICTION: usize = 8;
 const INPUT_DELAY: usize = 2;
+
 // Having a "load screen" time helps with initial desync issues.  No idea why,
-// but this tests well.
-// There is also sometimes a bug when a rollback to frame 0 occurs if two clients have high latency.
+// but this tests well. There is also sometimes a bug when a rollback to frame 0
+// occurs if two clients have high latency.  Having this in place at least for 1
+// frame helps prevent that :-)
 const LOAD_SECONDS: usize = 3;
 
 // How far back we'll keep frame hash info for our other player
@@ -686,10 +688,14 @@ pub fn update_game_state(
     */
 
     // Only restore our state if we are in a rollback.  This step is *critical*.
-    // Only doing this during rollbacks saves us a step every frame.
+    // Only doing this during rollbacks saves us a step every frame.  Here, we
+    // also do not allow rollback to frame 0.  Physics state is already correct
+    // in this case.  This prevents lagged clients from getting immediate desync
+    // and is entirely a hack since we don't enable physics until later anyway.
+    //
     // You can also test that desync detection is working by disabling:
     // if false {
-    if is_rollback {
+    if is_rollback && game_state.frame > 1 {
         if let Some(state_context) = game_state.rapier_state.as_ref() {
             if let Ok(context) = bincode::deserialize::<RapierContext>(state_context) {
                 // commands.insert_resource(context);
