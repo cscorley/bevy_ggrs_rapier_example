@@ -11,9 +11,7 @@ bevy = "0.8.1"
 bytemuck = { version = "1.7.3", features = ["derive"] }
 ggrs = { version = "0.9.1", features = ["sync-send"] }
 bevy_ggrs = { version = "0.10.0" }
-matchbox_socket = { git = "https://github.com/johanhelsing/matchbox", features = [
-    "ggrs-socket",
-] }
+matchbox_socket = { version = "0.4.0", features = ["ggrs-socket"] }
 log = "0.4"
 #bevy_rapier2d = { version = "0.17.0", features = [
 # This branch must be used until dimforge/bevy_rapier PRs #233 and #261 are merged
