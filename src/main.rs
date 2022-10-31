@@ -25,7 +25,7 @@ const INPUT_DELAY: usize = 2;
 // but this tests well. There is also sometimes a bug when a rollback to frame 0
 // occurs if two clients have high latency.  Having this in place at least for 1
 // frame helps prevent that :-)
-const LOAD_SECONDS: usize = 3;
+const LOAD_SECONDS: usize = 1;
 
 // How far back we'll keep frame hash info for our other player
 const DESYNC_MAX_FRAMES: usize = 30;
@@ -331,7 +331,6 @@ fn main() {
         physics_pipeline_active: false,
 
         // Do not check internal structures for transform changes
-        // WARNING:  This is something on my branch only!  This is in bevy_rapier PR #261
         force_update_from_transform_changes: true,
 
         ..default()
