@@ -331,7 +331,6 @@ fn main() {
         physics_pipeline_active: false,
 
         // Do not check internal structures for transform changes
-        // WARNING:  This is something on my branch only!  This is in bevy_rapier PR #261
         force_update_from_transform_changes: true,
 
         ..default()

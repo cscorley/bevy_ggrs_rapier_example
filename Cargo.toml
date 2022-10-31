@@ -13,9 +13,9 @@ ggrs = { version = "0.9.1", features = ["sync-send"] }
 bevy_ggrs = { version = "0.10.0" }
 matchbox_socket = { version = "0.4.0", features = ["ggrs-socket"] }
 log = "0.4"
-#bevy_rapier2d = { version = "0.17.0", features = [
-# This branch must be used until dimforge/bevy_rapier PRs #233 and #261 are merged
-bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "transform-and-sort-0.8", features = [
+#bevy_rapier2d = { version = "0.18.0", features = [
+# This branch must be used until dimforge/bevy_rapier PRs #233 is merged
+bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "more-deterministic-context", features = [
     "enhanced-determinism",
     "serde-serialize",
 ] }
