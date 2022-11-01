@@ -195,10 +195,12 @@ fn main() {
     // them in Rapier the same every time.
     //
     // Yes, this is kind of silly, but a handy workaround for now.
-    // For comparison, in release mode my context hash at init: 4591
+    // For comparison, in release mode my context hash at init: 18674
+    // Having 100+ entities ready to spawn will cause bevy_rapier to receive
+    // components out-of-order.  This is good for testing desync on frame 1!
     let _ = app
         .world
-        .spawn_batch((0..11).map(DeterministicSpawnBundle::new))
+        .spawn_batch((0..101).map(DeterministicSpawnBundle::new))
         .collect::<Vec<Entity>>();
 
     // Something smaller so we can put these side by side
@@ -566,15 +568,6 @@ pub fn input(
     let mut last_confirmed_frame = ggrs::NULL_FRAME;
     let mut last_confirmed_hash = 0;
 
-    // Do not do anything until physics are live
-    if !rapier_config.physics_pipeline_active {
-        return GGRSInput {
-            input,
-            last_confirmed_frame,
-            last_confirmed_hash,
-        };
-    }
-
     // Find a hash that we haven't sent yet.
     // This probably seems like overkill but we have to track a bunch anyway, we
     // might as well do our due diligence and inform our opponent of every hash
@@ -589,6 +582,15 @@ pub fn input(
             last_confirmed_hash = frame_hash.rapier_checksum;
             frame_hash.sent = true;
         }
+    }
+
+    // Do not do anything until physics are live
+    if !rapier_config.physics_pipeline_active {
+        return GGRSInput {
+            input,
+            last_confirmed_frame,
+            last_confirmed_hash,
+        };
     }
 
     if keyboard_input.pressed(KeyCode::W) {
@@ -759,12 +761,7 @@ pub fn save_game_state(
                 frame_hash.sent = false;
                 frame_hash.validated = false;
                 let confirmed_frame = session.confirmed_frame();
-                // TODO:  can this be <= ?
-                // depends on if confirmed frame is always at highest value or is
-                // increased as frames are re-simulated up to that point.
-                // I think all we get out of that is more validations?
-                // Need to check impl of confirmed_frame to make sure it's worthwhile
-                frame_hash.confirmed = frame_hash.frame == confirmed_frame;
+                frame_hash.confirmed = frame_hash.frame <= confirmed_frame;
 
                 log::info!("confirmed frame: {:?}", confirmed_frame);
                 log::info!("Stored frame hash at save: {:?}", frame_hash);
@@ -808,6 +805,7 @@ pub fn apply_inputs(
     inputs: Res<Vec<(GGRSInput, InputStatus)>>,
     mut hashes: ResMut<RxFrameHashes>,
     local_handles: Res<LocalHandles>,
+    rapier_config: Res<RapierConfiguration>,
 ) {
     for (mut v, p) in query.iter_mut() {
         let (game_input, input_status) = inputs[p.handle];
@@ -840,6 +838,11 @@ pub fn apply_inputs(
         if input > 0 {
             // Useful for desync observing
             log::info!("input {:?} from {}: {}", input_status, p.handle, input)
+        }
+
+        // Do not do anything until physics are live
+        if !rapier_config.physics_pipeline_active {
+            continue;
         }
 
         let horizontal = if input & INPUT_LEFT != 0 && input & INPUT_RIGHT == 0 {
