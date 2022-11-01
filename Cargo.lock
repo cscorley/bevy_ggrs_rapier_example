@@ -1002,7 +1002,7 @@ dependencies = [
 [[package]]
 name = "bevy_rapier2d"
 version = "0.18.0"
-source = "git+https://github.com/cscorley/bevy_rapier?branch=more-deterministic-context#fd861d7a9e6e541a96493c63b23222c823f1bead"
+source = "git+https://github.com/cscorley/bevy_rapier?branch=more-deterministic-context#b27111c55248bab4672ab3b6344b692a3595e853"
 dependencies = [
  "bevy",
  "bitflags",
