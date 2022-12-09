@@ -899,7 +899,7 @@ pub fn apply_inputs(
 
 pub fn update_matchbox_socket(commands: Commands, mut socket_res: ResMut<WebRtcSocketWrapper>) {
     if let Some(socket) = socket_res.0.as_mut() {
-        socket.accept_new_connections();
+        socket.accept_new_connections(); // needs mut
         if socket.players().len() >= NUM_PLAYERS {
             // take the socket
             let socket = socket_res.0.take().unwrap();
@@ -957,7 +957,7 @@ fn print_events_system(session: Option<ResMut<Session<GGRSConfig>>>) {
 fn print_network_stats_system(
     time: Res<Time>,
     mut timer: ResMut<NetworkStatsTimer>,
-    session: Option<ResMut<Session<GGRSConfig>>>,
+    session: Option<Res<Session<GGRSConfig>>>,
 ) {
     if let Some(session) = session {
         // print only when timer runs out
