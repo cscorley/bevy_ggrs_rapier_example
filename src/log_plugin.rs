@@ -1,5 +1,6 @@
 use bevy::app::{App, Plugin};
 use bevy::log::Level;
+use bevy::prelude::Resource;
 use tracing_log::LogTracer;
 use tracing_subscriber::{prelude::*, registry::Registry, EnvFilter};
 
@@ -7,6 +8,7 @@ use tracing_subscriber::{prelude::*, registry::Registry, EnvFilter};
 pub struct LogPlugin;
 
 /// `LogPlugin` settings
+#[derive(Resource)]
 pub struct LogSettings {
     /// Filters logs using the [`EnvFilter`] format
     pub filter: String,
