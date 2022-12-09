@@ -1,7 +1,5 @@
 mod log_plugin;
 
-use std::net::SocketAddr;
-
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
@@ -85,7 +83,7 @@ impl bevy_ggrs::ggrs::Config for GGRSConfig {
     type Input = GGRSInput;
     // bevy_ggrs doesn't really use State, so just make this a small whatever
     type State = u8;
-    type Address = SocketAddr;
+    type Address = String;
 }
 
 /// Metadata we need to store about frames we've rendered locally
@@ -250,7 +248,10 @@ fn main() {
         .add_system(print_network_stats_system)
         .add_system(print_events_system)
         // We don't really draw anything ourselves, just show us the raw physics colliders
-        .add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(RapierDebugRenderPlugin {
+            enabled: true,
+            ..default()
+        })
         .add_plugin(InspectableRapierPlugin)
         .add_plugin(WorldInspectorPlugin::default());
 
@@ -401,7 +402,7 @@ pub fn startup(
     commands.insert_resource(RxFrameHashes::default());
     commands.insert_resource(LastFrameCount::default());
     commands.insert_resource(LocalHandles::default());
-    commands.spawn_bundle(Camera2dBundle::default());
+    commands.spawn(Camera2dBundle::default());
 
     // Everything must be spawned in the same order, every time,
     // deterministically.  There is also potential for bevy itself to return
@@ -901,8 +902,8 @@ pub fn update_matchbox_socket(commands: Commands, mut socket_res: ResMut<WebRtcS
         socket.accept_new_connections();
         if socket.players().len() >= NUM_PLAYERS {
             // take the socket
-            let socket = socket_res.0.as_mut().take().unwrap();
-            create_ggrs_session(commands, *socket);
+            let socket = socket_res.0.take().unwrap();
+            create_ggrs_session(commands, socket);
         }
     }
 }
@@ -937,17 +938,18 @@ fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
         .start_p2p_session(socket)
         .expect("Session could not be created.");
 
-    commands.insert_resource(session);
     commands.insert_resource(LocalHandles { handles });
 
     // bevy_ggrs uses this to know when to start
     commands.insert_resource(Session::P2PSession(session));
 }
 
-fn print_events_system(session: ResMut<Session<GGRSConfig>>) {
-    if let Session::P2PSession(session) = session.as_ref() {
-        for event in session.events() {
-            println!("GGRS Event: {:?}", event);
+fn print_events_system(session: Option<ResMut<Session<GGRSConfig>>>) {
+    if let Some(mut session) = session {
+        if let Session::P2PSession(session) = session.as_mut() {
+            for event in session.events() {
+                println!("GGRS Event: {:?}", event);
+            }
         }
     }
 }
@@ -955,15 +957,17 @@ fn print_events_system(session: ResMut<Session<GGRSConfig>>) {
 fn print_network_stats_system(
     time: Res<Time>,
     mut timer: ResMut<NetworkStatsTimer>,
-    session: Res<Session<GGRSConfig>>,
+    session: Option<ResMut<Session<GGRSConfig>>>,
 ) {
-    // print only when timer runs out
-    if timer.0.tick(time.delta()).just_finished() {
-        if let Session::P2PSession(session) = session.as_ref() {
-            let num_players = session.num_players() as usize;
-            for i in 0..num_players {
-                if let Ok(stats) = session.network_stats(i) {
-                    println!("NetworkStats for player {}: {:?}", i, stats);
+    if let Some(session) = session {
+        // print only when timer runs out
+        if timer.0.tick(time.delta()).just_finished() {
+            if let Session::P2PSession(session) = session.as_ref() {
+                let num_players = session.num_players() as usize;
+                for i in 0..num_players {
+                    if let Ok(stats) = session.network_stats(i) {
+                        println!("NetworkStats for player {}: {:?}", i, stats);
+                    }
                 }
             }
         }
