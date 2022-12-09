@@ -2,10 +2,11 @@ mod log_plugin;
 
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
-use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, SessionType};
+use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
 use bevy_rapier2d::prelude::*;
 use bytemuck::{Pod, Zeroable};
-use ggrs::{Config, Frame, InputStatus, P2PSession, PlayerHandle, PlayerType, SessionBuilder};
+use ggrs::{Frame, InputStatus, PlayerHandle, PlayerType, SessionBuilder};
+use log_plugin::LogSettings;
 use matchbox_socket::WebRtcSocket;
 use rand::{thread_rng, Rng};
 
@@ -46,10 +47,13 @@ const INPUT_LEFT: u16 = 0b0100;
 const INPUT_RIGHT: u16 = 0b1000;
 
 /// Local handles, this should just be 1 entry in this demo, but you may end up wanting to implement 2v2
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct LocalHandles {
     pub handles: Vec<PlayerHandle>,
 }
+
+#[derive(Default, Resource)]
+pub struct WebRtcSocketWrapper(pub Option<WebRtcSocket>);
 
 /// Our primary data struct; what players send to one another
 #[repr(C)]
@@ -75,7 +79,7 @@ pub struct GGRSInput {
 /// The main GGRS configuration type
 #[derive(Debug)]
 pub struct GGRSConfig;
-impl Config for GGRSConfig {
+impl bevy_ggrs::ggrs::Config for GGRSConfig {
     type Input = GGRSInput;
     // bevy_ggrs doesn't really use State, so just make this a small whatever
     type State = u8;
@@ -83,7 +87,7 @@ impl Config for GGRSConfig {
 }
 
 /// Metadata we need to store about frames we've rendered locally
-#[derive(Default, Hash, Component, PartialEq, Eq, Debug)]
+#[derive(Default, Hash, Resource, PartialEq, Eq, Debug)]
 pub struct FrameHash {
     /// The frame number for this metadata
     pub frame: Frame,
@@ -102,7 +106,7 @@ pub struct FrameHash {
 }
 
 /// Metadata we need to store about frames we've received from other player
-#[derive(Default, Hash, Component, PartialEq, Eq, Debug)]
+#[derive(Default, Hash, Resource, PartialEq, Eq, Debug)]
 pub struct RxFrameHash {
     /// The frame number for this metadata
     pub frame: Frame,
@@ -115,13 +119,13 @@ pub struct RxFrameHash {
 }
 
 // A collection of confirmed frame hashes we've seen locally
-#[derive(Default, Hash, Component, PartialEq, Eq)]
+#[derive(Default, Hash, Resource, PartialEq, Eq)]
 pub struct FrameHashes(pub [FrameHash; DESYNC_MAX_FRAMES]);
 
 // A collection of confirmed frame hashes we've received from our other player
 // This only works for 1v1.  This would have to be extended to consider all
 // remotes in larger scenarios (I accept pull requests!)
-#[derive(Default, Hash, Component, PartialEq, Eq)]
+#[derive(Default, Hash, Resource, PartialEq, Eq)]
 pub struct RxFrameHashes(pub [RxFrameHash; DESYNC_MAX_FRAMES]);
 
 /// A marker component for spawning first thing when the app launches.  This
@@ -154,8 +158,8 @@ pub struct Player {
 }
 
 /// Easy way to detect rollbacks
-#[derive(Default, Reflect, Hash, Component, PartialEq, Eq)]
-#[reflect(Hash, Component, PartialEq)]
+#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
+#[reflect(Hash, Resource, PartialEq)]
 pub struct LastFrameCount {
     pub frame: Frame,
 }
@@ -163,16 +167,16 @@ pub struct LastFrameCount {
 /// Controls whether our opponent will inject random inputs while inactive.
 /// This is useful for testing rollbacks locally and can be toggled off with `r`
 /// and `t`.
-#[derive(Default, Reflect, Hash, Component, PartialEq, Eq)]
-#[reflect(Hash, Component, PartialEq)]
+#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
+#[reflect(Hash, Resource, PartialEq)]
 pub struct RandomInput {
     pub on: bool,
 }
 
 /// Our GameState, which will be rolled back and we will use to restore our
 /// physics state.
-#[derive(Default, Reflect, Hash, Component, PartialEq, Eq)]
-#[reflect(Hash, Component, PartialEq)]
+#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
+#[reflect(Hash, Resource, PartialEq)]
 pub struct GameState {
     pub rapier_state: Option<Vec<u8>>,
     pub frame: Frame,
@@ -180,6 +184,7 @@ pub struct GameState {
 }
 
 /// Not necessary for this demo, but useful debug output sometimes.
+#[derive(Resource)]
 struct NetworkStatsTimer(Timer);
 
 fn main() {
@@ -212,35 +217,52 @@ fn main() {
     };
 
     // DefaultPlugins will use window descriptor
-    app.insert_resource(window_info)
-        .insert_resource(ClearColor(Color::BLACK))
+    app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(LogSettings {
             level: Level::DEBUG,
             ..default()
         })
-        .add_plugins_with(DefaultPlugins, |plugins| plugins.disable::<LogPlugin>())
+        .add_plugins(
+            DefaultPlugins
+                .set(AssetPlugin {
+                    watch_for_changes: true,
+                    ..default()
+                })
+                .set(WindowPlugin {
+                    window: window_info,
+                    ..default()
+                })
+                .build()
+                .disable::<LogPlugin>(),
+        )
         // Add our own log plugin to help with comparing desync output
         .add_plugin(log_plugin::LogPlugin)
         .add_startup_system(startup)
         .add_system(keyboard_input)
         .add_system(bevy::window::close_on_esc)
         .add_system(update_matchbox_socket)
-        .insert_resource(NetworkStatsTimer(Timer::from_seconds(2.0, true)))
+        .insert_resource(NetworkStatsTimer(Timer::from_seconds(
+            2.0,
+            TimerMode::Repeating,
+        )))
         .add_system(print_network_stats_system)
         .add_system(print_events_system)
         // We don't really draw anything ourselves, just show us the raw physics colliders
-        .add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(RapierDebugRenderPlugin {
+            enabled: true,
+            ..default()
+        })
         .add_plugin(InspectableRapierPlugin)
         .add_plugin(WorldInspectorPlugin::default());
 
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
         .with_input_system(input)
-        .register_rollback_type::<GameState>()
+        .register_rollback_resource::<GameState>()
         // Store everything that Rapier updates in its Writeback stage
-        .register_rollback_type::<Transform>()
-        .register_rollback_type::<Velocity>()
-        .register_rollback_type::<Sleeping>()
+        .register_rollback_component::<Transform>()
+        .register_rollback_component::<Velocity>()
+        .register_rollback_component::<Sleeping>()
         .with_rollback_schedule(
             Schedule::default()
                 // It is imperative that this executes first, always.  Yes, I know about `.after()`.
@@ -380,7 +402,7 @@ pub fn startup(
     commands.insert_resource(RxFrameHashes::default());
     commands.insert_resource(LastFrameCount::default());
     commands.insert_resource(LocalHandles::default());
-    commands.spawn_bundle(Camera2dBundle::default());
+    commands.spawn(Camera2dBundle::default());
 
     // Everything must be spawned in the same order, every time,
     // deterministically.  There is also potential for bevy itself to return
@@ -554,7 +576,7 @@ pub fn startup(
     let (socket, message_loop) = WebRtcSocket::new(MATCHBOX_ADDR);
     let task_pool = IoTaskPool::get();
     task_pool.spawn(message_loop).detach();
-    commands.insert_resource(Some(socket));
+    commands.insert_resource(WebRtcSocketWrapper(Some(socket)));
 }
 
 pub fn input(
@@ -736,7 +758,7 @@ pub fn save_game_state(
     mut game_state: ResMut<GameState>,
     rapier: Res<RapierContext>,
     mut hashes: ResMut<FrameHashes>,
-    session: Option<Res<P2PSession<GGRSConfig>>>,
+    session: Res<Session<GGRSConfig>>,
 ) {
     // This serializes our context every frame.  It's not great, but works to
     // integrate the two plugins.  To do less of it, we would need to change
@@ -751,7 +773,7 @@ pub fn save_game_state(
         // the checksum information into our hash history.  We'll use this
         // information to compare whenever the opponent sends over their
         // confirmed frame data.
-        if let Some(session) = session {
+        if let Session::P2PSession(session) = session.as_ref() {
             if let Some(frame_hash) = hashes
                 .0
                 .get_mut((game_state.frame as usize) % DESYNC_MAX_FRAMES)
@@ -802,7 +824,7 @@ pub fn frame_validator(mut hashes: ResMut<FrameHashes>, mut rx_hashes: ResMut<Rx
 
 pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
-    inputs: Res<Vec<(GGRSInput, InputStatus)>>,
+    inputs: Res<PlayerInputs<GGRSConfig>>,
     mut hashes: ResMut<RxFrameHashes>,
     local_handles: Res<LocalHandles>,
     rapier_config: Res<RapierConfiguration>,
@@ -875,12 +897,12 @@ pub fn apply_inputs(
     }
 }
 
-pub fn update_matchbox_socket(commands: Commands, mut socket_res: ResMut<Option<WebRtcSocket>>) {
-    if let Some(socket) = socket_res.as_mut() {
-        socket.accept_new_connections();
+pub fn update_matchbox_socket(commands: Commands, mut socket_res: ResMut<WebRtcSocketWrapper>) {
+    if let Some(socket) = socket_res.0.as_mut() {
+        socket.accept_new_connections(); // needs mut
         if socket.players().len() >= NUM_PLAYERS {
             // take the socket
-            let socket = socket_res.as_mut().take().unwrap();
+            let socket = socket_res.0.take().unwrap();
             create_ggrs_session(commands, socket);
         }
     }
@@ -916,17 +938,18 @@ fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
         .start_p2p_session(socket)
         .expect("Session could not be created.");
 
-    commands.insert_resource(session);
     commands.insert_resource(LocalHandles { handles });
 
     // bevy_ggrs uses this to know when to start
-    commands.insert_resource(SessionType::P2PSession);
+    commands.insert_resource(Session::P2PSession(session));
 }
 
-fn print_events_system(session: Option<ResMut<P2PSession<GGRSConfig>>>) {
+fn print_events_system(session: Option<ResMut<Session<GGRSConfig>>>) {
     if let Some(mut session) = session {
-        for event in session.events() {
-            println!("GGRS Event: {:?}", event);
+        if let Session::P2PSession(session) = session.as_mut() {
+            for event in session.events() {
+                println!("GGRS Event: {:?}", event);
+            }
         }
     }
 }
@@ -934,15 +957,17 @@ fn print_events_system(session: Option<ResMut<P2PSession<GGRSConfig>>>) {
 fn print_network_stats_system(
     time: Res<Time>,
     mut timer: ResMut<NetworkStatsTimer>,
-    session: Option<Res<P2PSession<GGRSConfig>>>,
+    session: Option<Res<Session<GGRSConfig>>>,
 ) {
-    // print only when timer runs out
-    if timer.0.tick(time.delta()).just_finished() {
-        if let Some(session) = session {
-            let num_players = session.num_players() as usize;
-            for i in 0..num_players {
-                if let Ok(stats) = session.network_stats(i) {
-                    println!("NetworkStats for player {}: {:?}", i, stats);
+    if let Some(session) = session {
+        // print only when timer runs out
+        if timer.0.tick(time.delta()).just_finished() {
+            if let Session::P2PSession(session) = session.as_ref() {
+                let num_players = session.num_players() as usize;
+                for i in 0..num_players {
+                    if let Ok(stats) = session.network_stats(i) {
+                        println!("NetworkStats for player {}: {:?}", i, stats);
+                    }
                 }
             }
         }
