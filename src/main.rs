@@ -1,13 +1,19 @@
+mod desync;
+mod frames;
 mod log_plugin;
+mod physics;
 
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
 use bevy_rapier2d::prelude::*;
 use bytemuck::{Pod, Zeroable};
+use desync::*;
+use frames::*;
 use ggrs::{Frame, InputStatus, PlayerHandle, PlayerType, SessionBuilder};
 use log_plugin::LogSettings;
 use matchbox_socket::WebRtcSocket;
+use physics::*;
 use rand::{thread_rng, Rng};
 
 use bevy::log::*;
@@ -28,7 +34,9 @@ const INPUT_DELAY: usize = 2;
 // frame helps prevent that :-)
 const LOAD_SECONDS: usize = 1;
 
-// How far back we'll keep frame hash info for our other player
+// How far back we'll keep frame hash info for our other player. This should be
+// some multiple of MAX_PREDICTION, preferrably 3x, so that we can desync detect
+// outside the rollback and prediction windows.
 const DESYNC_MAX_FRAMES: usize = 30;
 
 // TODO: Hey you!!! You, the one reading this!  Yes, you.
@@ -86,48 +94,6 @@ impl bevy_ggrs::ggrs::Config for GGRSConfig {
     type Address = String;
 }
 
-/// Metadata we need to store about frames we've rendered locally
-#[derive(Default, Hash, Resource, PartialEq, Eq, Debug)]
-pub struct FrameHash {
-    /// The frame number for this metadata
-    pub frame: Frame,
-
-    /// The checksum of the Rapier physics state for the frame.  I use this term interchangably with `hash`, sorry.
-    pub rapier_checksum: u16,
-
-    /// Has been confirmed by GGRS
-    pub confirmed: bool,
-
-    /// Has been sent by us to other players
-    pub sent: bool,
-
-    /// Has been validated by us against other player
-    pub validated: bool,
-}
-
-/// Metadata we need to store about frames we've received from other player
-#[derive(Default, Hash, Resource, PartialEq, Eq, Debug)]
-pub struct RxFrameHash {
-    /// The frame number for this metadata
-    pub frame: Frame,
-
-    /// The checksum of the Rapier physics state for the frame.  I use this term interchangably with `hash`, sorry.
-    pub rapier_checksum: u16,
-
-    /// Has been validated by us against other player
-    pub validated: bool,
-}
-
-// A collection of confirmed frame hashes we've seen locally
-#[derive(Default, Hash, Resource, PartialEq, Eq)]
-pub struct FrameHashes(pub [FrameHash; DESYNC_MAX_FRAMES]);
-
-// A collection of confirmed frame hashes we've received from our other player
-// This only works for 1v1.  This would have to be extended to consider all
-// remotes in larger scenarios (I accept pull requests!)
-#[derive(Default, Hash, Resource, PartialEq, Eq)]
-pub struct RxFrameHashes(pub [RxFrameHash; DESYNC_MAX_FRAMES]);
-
 /// A marker component for spawning first thing when the app launches.  This
 /// just contains some arbitrary data, it actually isn't critical (it's used to
 /// sort, but we could also use [`Entity`])
@@ -179,7 +145,6 @@ pub struct RandomInput {
 #[reflect(Hash, Resource, PartialEq)]
 pub struct GameState {
     pub rapier_state: Option<Vec<u8>>,
-    pub frame: Frame,
     pub rapier_checksum: u16,
 }
 
@@ -219,7 +184,7 @@ fn main() {
     // DefaultPlugins will use window descriptor
     app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(LogSettings {
-            level: Level::DEBUG,
+            level: Level::INFO,
             ..default()
         })
         .add_plugins(
@@ -259,10 +224,14 @@ fn main() {
         .with_update_frequency(FPS)
         .with_input_system(input)
         .register_rollback_resource::<GameState>()
+        .register_rollback_resource::<CurrentFrame>()
         // Store everything that Rapier updates in its Writeback stage
+        .register_rollback_component::<GlobalTransform>()
         .register_rollback_component::<Transform>()
         .register_rollback_component::<Velocity>()
         .register_rollback_component::<Sleeping>()
+        // Game stuff
+        .register_rollback_resource::<EnablePhysicsAfter>()
         .with_rollback_schedule(
             Schedule::default()
                 // It is imperative that this executes first, always.  Yes, I know about `.after()`.
@@ -270,7 +239,19 @@ fn main() {
                 // which I think must flush at all costs before we enter the regular game logic
                 .with_stage(
                     ROLLBACK_SYSTEMS,
-                    SystemStage::parallel().with_system(update_game_state),
+                    SystemStage::parallel()
+                        // Just strictly ordered so we have ordered comparable
+                        // logging.  Could be optimized if the logger info was
+                        // synthesized into it's own system or something
+                        .with_system(update_current_frame)
+                        .with_system(update_current_session_frame.after(update_current_frame))
+                        .with_system(update_confirmed_frame.after(update_current_session_frame))
+                        // The three above must actually come before we update rollback status
+                        .with_system(update_rollback_status.after(update_confirmed_frame))
+                        // These three must actually come after we update rollback status
+                        .with_system(update_validatable_frame.after(update_rollback_status))
+                        .with_system(toggle_physics.after(update_rollback_status))
+                        .with_system(rollback_rapier_context.after(toggle_physics)),
                 )
                 // Add our game logic and systems here.
                 // If it impacts what the physics engine should consider, do it here.
@@ -295,11 +276,11 @@ fn main() {
                 .with_stage_after(
                     PhysicsStages::SyncBackend,
                     PhysicsStages::StepSimulation,
-                    SystemStage::parallel().with_system_set(
-                        RapierPhysicsPlugin::<NoUserData>::get_systems(
+                    SystemStage::parallel()
+                        .with_run_criteria(should_run_physics)
+                        .with_system_set(RapierPhysicsPlugin::<NoUserData>::get_systems(
                             PhysicsStages::StepSimulation,
-                        ),
-                    ),
+                        )),
                 )
                 .with_stage_after(
                     PhysicsStages::StepSimulation,
@@ -312,7 +293,7 @@ fn main() {
                 .with_stage_after(
                     PhysicsStages::Writeback,
                     CHECKSUM_SYSTEMS,
-                    SystemStage::parallel().with_system(save_game_state),
+                    SystemStage::parallel().with_system(save_rapier_context),
                 ),
         )
         .build(&mut app);
@@ -332,7 +313,7 @@ fn main() {
         RapierPhysicsPlugin::<NoUserData>::default()
             // Scale of 8 since that's the factor size of our ball & players.
             // This choice was made kind of arbitrarily.
-            .with_physics_scale(8.)
+            .with_physics_scale(1.)
             // This allows us to hook in the systems ourselves above in the GGRS schedule
             .with_default_system_setup(false),
     );
@@ -351,8 +332,9 @@ fn main() {
         // Turn off query pipeline since this example does not use it
         query_pipeline_active: false,
 
-        // We will turn this on after "loading", this helps when looking at init issues
-        physics_pipeline_active: false,
+        // This is on always, we will toggle the physics system via a run condition
+        // because we need the writeback stage to always execute
+        physics_pipeline_active: true,
 
         // Do not check internal structures for transform changes
         force_update_from_transform_changes: true,
@@ -397,11 +379,29 @@ pub fn startup(
     }
 
     // A bunch of stuff for our wacky systems :-)
-    commands.insert_resource(RandomInput { on: true });
+
+    // frame updating
+    commands.insert_resource(LastFrame::default());
+    commands.insert_resource(CurrentFrame::default());
+    commands.insert_resource(CurrentSessionFrame::default());
+    commands.insert_resource(ConfirmedFrame::default());
+    commands.insert_resource(RollbackStatus::default());
+    commands.insert_resource(ValidatableFrame::default());
+
+    // physics toggling
+    commands.insert_resource(EnablePhysicsAfter::default());
+    commands.insert_resource(PhysicsEnabled::default());
+
+    // desync detection
     commands.insert_resource(FrameHashes::default());
     commands.insert_resource(RxFrameHashes::default());
-    commands.insert_resource(LastFrameCount::default());
+
+    // ggrs local players
     commands.insert_resource(LocalHandles::default());
+
+    // random movement
+    commands.insert_resource(RandomInput { on: true });
+
     commands.spawn(Camera2dBundle::default());
 
     // Everything must be spawned in the same order, every time,
@@ -423,6 +423,7 @@ pub fn startup(
         .insert(Name::new("Ball"))
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::ball(4.))
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.)))) // ColliderScale important so we don't rollback to bad shape!
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
@@ -436,6 +437,7 @@ pub fn startup(
         .insert(Player { handle: 0 })
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::cuboid(8., 8.))
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.)))) // ColliderScale important so we don't rollback to bad shape!
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
@@ -450,6 +452,7 @@ pub fn startup(
         .insert(Player { handle: 1 })
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::cuboid(8., 8.))
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.)))) // ColliderScale important so we don't rollback to bad shape!
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
@@ -466,6 +469,7 @@ pub fn startup(
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Floor"))
         .insert(Collider::cuboid(overlapping_box_length, thickness))
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -476,6 +480,7 @@ pub fn startup(
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Left Wall"))
         .insert(Collider::cuboid(thickness, overlapping_box_length))
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -486,6 +491,7 @@ pub fn startup(
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Right Wall"))
         .insert(Collider::cuboid(thickness, overlapping_box_length))
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -496,6 +502,7 @@ pub fn startup(
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ceiling"))
         .insert(Collider::cuboid(overlapping_box_length, thickness))
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -514,6 +521,7 @@ pub fn startup(
             ])
             .unwrap(),
         )
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -531,6 +539,7 @@ pub fn startup(
             ])
             .unwrap(),
         )
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -548,6 +557,7 @@ pub fn startup(
             ])
             .unwrap(),
         )
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -565,6 +575,7 @@ pub fn startup(
             ])
             .unwrap(),
         )
+        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -583,8 +594,9 @@ pub fn input(
     _handle: In<PlayerHandle>, // Required by bevy_ggrs
     keyboard_input: Res<Input<KeyCode>>,
     random: Res<RandomInput>,
-    rapier_config: Res<RapierConfiguration>,
+    physics_enabled: Res<PhysicsEnabled>,
     mut hashes: ResMut<FrameHashes>,
+    validatable_frame: Res<ValidatableFrame>,
 ) -> GGRSInput {
     let mut input: u16 = 0;
     let mut last_confirmed_frame = ggrs::NULL_FRAME;
@@ -598,7 +610,11 @@ pub fn input(
     // invalidated without a state synchronization mechanism (which GGRS/GGPO
     // does not have out of the box.)
     for frame_hash in hashes.0.iter_mut() {
-        if frame_hash.confirmed && !frame_hash.sent {
+        // only send confirmed frames that have not yet been sent that are well past our max prediction window
+        if frame_hash.confirmed
+            && !frame_hash.sent
+            && validatable_frame.is_validatable(frame_hash.frame)
+        {
             info!("Sending data {:?}", frame_hash);
             last_confirmed_frame = frame_hash.frame;
             last_confirmed_hash = frame_hash.rapier_checksum;
@@ -607,7 +623,7 @@ pub fn input(
     }
 
     // Do not do anything until physics are live
-    if !rapier_config.physics_pipeline_active {
+    if !physics_enabled.0 {
         return GGRSInput {
             input,
             last_confirmed_frame,
@@ -648,186 +664,12 @@ pub fn input(
     }
 }
 
-pub fn update_game_state(
-    mut game_state: ResMut<GameState>,
-    mut last_frame_count: ResMut<LastFrameCount>,
-    mut rapier: ResMut<RapierContext>,
-    mut config: ResMut<RapierConfiguration>,
-    /*
-    mut transforms: Query<&mut Transform, With<Rollback>>,
-    mut velocities: Query<&mut Velocity, With<Rollback>>,
-    mut sleepings: Query<&mut Sleeping, With<Rollback>>,
-    mut exit: EventWriter<bevy::app::AppExit>,
-    */
-) {
-    let is_rollback = last_frame_count.frame > game_state.frame;
-    if is_rollback {
-        log::info!(
-            "rollback on {} to {}",
-            last_frame_count.frame,
-            game_state.frame
-        );
-    }
-
-    game_state.frame += 1;
-    // I know this seems silly at first glance, but after we know we've entered
-    // a rollback once, we have to resimulate all frames back to where we left
-    // off... and there may be additional rollbacks that happen during that!
-    last_frame_count.frame = game_state.frame;
-
-    // Serialize our physics state for hashing.  We can likely avoid this work during rollbacks.
-    // This should not be necessary for this demo to work, as we will do the real checksum
-    // during `save_game_state` at the end of the pipeline.
-    if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        // Update existing checksum to current state
-        game_state.rapier_checksum = fletcher16(&context_bytes);
-
-        // Compare to serialized state, also a rollback indicator, only useful for desync debugging
-        let serialized_checksum = if let Some(state_context) = game_state.rapier_state.as_ref() {
-            fletcher16(state_context)
-        } else {
-            0
-        };
-
-        log::info!(
-            "Context hash at start: {}\t{}",
-            game_state.rapier_checksum,
-            serialized_checksum
-        );
-    }
-
-    // Trigger changes for all of these to be sure sync picks them up.
-    // This is tin-foil hat stuff, and has been useful to debug desync origins
-    /*
-           for mut t in transforms.iter_mut() {
-               t.set_changed();
-           }
-           for mut v in velocities.iter_mut() {
-               v.set_changed();
-           }
-           for mut s in sleepings.iter_mut() {
-               s.set_changed();
-           }
-    */
-
-    // Only restore our state if we are in a rollback.  This step is *critical*.
-    // Only doing this during rollbacks saves us a step every frame.  Here, we
-    // also do not allow rollback to frame 0.  Physics state is already correct
-    // in this case.  This prevents lagged clients from getting immediate desync
-    // and is entirely a hack since we don't enable physics until later anyway.
-    //
-    // You can also test that desync detection is working by disabling:
-    // if false {
-    if is_rollback && game_state.frame > 1 {
-        if let Some(state_context) = game_state.rapier_state.as_ref() {
-            if let Ok(context) = bincode::deserialize::<RapierContext>(state_context) {
-                // commands.insert_resource(context);
-                // *rapier = context;
-
-                // Inserting or replacing directly seems to screw up some of the
-                // crate-only properties.  So, we'll copy over each public
-                // property instead.
-                rapier.bodies = context.bodies;
-                rapier.colliders = context.colliders;
-                rapier.broad_phase = context.broad_phase;
-                rapier.narrow_phase = context.narrow_phase;
-                rapier.ccd_solver = context.ccd_solver;
-                rapier.impulse_joints = context.impulse_joints;
-                rapier.integration_parameters = context.integration_parameters;
-                rapier.islands = context.islands;
-                rapier.multibody_joints = context.multibody_joints;
-                rapier.pipeline = context.pipeline;
-                rapier.query_pipeline = context.query_pipeline;
-            }
-        }
-    }
-
-    // Enable physics pipeline after awhile.
-    if game_state.frame > (FPS * LOAD_SECONDS) as i32 && !config.physics_pipeline_active {
-        config.physics_pipeline_active = true;
-    }
-
-    // Useful for init testing to make sure our checksums always start the same.
-    // Exit the app after a few frames
-    if game_state.frame > 10 {
-        // exit.send(bevy::app::AppExit);
-    }
-}
-
-pub fn save_game_state(
-    mut game_state: ResMut<GameState>,
-    rapier: Res<RapierContext>,
-    mut hashes: ResMut<FrameHashes>,
-    session: Res<Session<GGRSConfig>>,
-) {
-    // This serializes our context every frame.  It's not great, but works to
-    // integrate the two plugins.  To do less of it, we would need to change
-    // bevy_ggrs to serialize arbitrary structs like this one in addition to
-    // component tracking.  If you need this to happen less, I'd recommend not
-    // using the plugin and implementing GGRS yourself.
-    if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        game_state.rapier_checksum = fletcher16(&context_bytes);
-        game_state.rapier_state = Some(context_bytes);
-
-        // If our session has begun in earnest (it should have) we can store off
-        // the checksum information into our hash history.  We'll use this
-        // information to compare whenever the opponent sends over their
-        // confirmed frame data.
-        if let Session::P2PSession(session) = session.as_ref() {
-            if let Some(frame_hash) = hashes
-                .0
-                .get_mut((game_state.frame as usize) % DESYNC_MAX_FRAMES)
-            {
-                frame_hash.frame = game_state.frame as i32;
-                frame_hash.rapier_checksum = game_state.rapier_checksum;
-                frame_hash.sent = false;
-                frame_hash.validated = false;
-                let confirmed_frame = session.confirmed_frame();
-                frame_hash.confirmed = frame_hash.frame <= confirmed_frame;
-
-                log::info!("confirmed frame: {:?}", confirmed_frame);
-                log::info!("Stored frame hash at save: {:?}", frame_hash);
-            }
-        }
-
-        log::info!("Context hash at save: {}", game_state.rapier_checksum);
-        log::info!("----- end frame {} -----", game_state.frame);
-    }
-}
-
-/// Our desync detector!
-/// Validates the hashes we've received so far against the ones we've calculated ourselves.
-/// If there is a difference, panic.  Your game will probably want to handle this more gracefully.
-pub fn frame_validator(mut hashes: ResMut<FrameHashes>, mut rx_hashes: ResMut<RxFrameHashes>) {
-    for (i, rx) in rx_hashes.0.iter_mut().enumerate() {
-        // Check every confirmed frame that has not been validated
-        if rx.frame > 0 && !rx.validated {
-            // Get that same frame in our buffer
-            if let Some(sx) = hashes.0.get_mut(i) {
-                // Make sure it's the exact same frame and also confirmed and not yet validated
-                if sx.frame == rx.frame && sx.confirmed && !sx.validated {
-                    // If this is causing your game to exit, you have a bug!
-                    assert_eq!(
-                        sx.rapier_checksum, rx.rapier_checksum,
-                        "Failed checksum checks {:?} != {:?}",
-                        sx, rx
-                    );
-                    log::info!("Frame validated {:?}", sx.frame);
-                    // Set both as validated
-                    sx.validated = true;
-                    rx.validated = true;
-                }
-            }
-        }
-    }
-}
-
 pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
     inputs: Res<PlayerInputs<GGRSConfig>>,
     mut hashes: ResMut<RxFrameHashes>,
     local_handles: Res<LocalHandles>,
-    rapier_config: Res<RapierConfiguration>,
+    physics_enabled: Res<PhysicsEnabled>,
 ) {
     for (mut v, p) in query.iter_mut() {
         let (game_input, input_status) = inputs[p.handle];
@@ -863,7 +705,7 @@ pub fn apply_inputs(
         }
 
         // Do not do anything until physics are live
-        if !rapier_config.physics_pipeline_active {
+        if !physics_enabled.0 {
             continue;
         }
 
