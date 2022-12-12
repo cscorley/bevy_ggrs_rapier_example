@@ -808,7 +808,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy-inspector-egui-rapier",
  "bevy_ggrs",
- "bevy_rapier2d 0.19.0 (git+https://github.com/cscorley/bevy_rapier?branch=more-deterministic-context)",
+ "bevy_rapier2d 0.19.0",
  "bincode",
  "bytemuck",
  "ggrs",
@@ -1005,6 +1005,18 @@ checksum = "8ec44f7655039546bc5d34d98de877083473f3e9b2b81d560c528d6d74d3eff4"
 [[package]]
 name = "bevy_rapier2d"
 version = "0.19.0"
+dependencies = [
+ "bevy",
+ "bitflags",
+ "log",
+ "nalgebra",
+ "rapier2d",
+ "serde",
+]
+
+[[package]]
+name = "bevy_rapier2d"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fe53a4fefd2d8bade79f2e5260bd206643bfcc951a3c5f86b3b7a0273eb19e0"
 dependencies = [
@@ -1013,19 +1025,6 @@ dependencies = [
  "log",
  "nalgebra",
  "rapier2d",
-]
-
-[[package]]
-name = "bevy_rapier2d"
-version = "0.19.0"
-source = "git+https://github.com/cscorley/bevy_rapier?branch=more-deterministic-context#14ce0cee0c5e49fc45758b65dda3de39c0e33865"
-dependencies = [
- "bevy",
- "bitflags",
- "log",
- "nalgebra",
- "rapier2d",
- "serde",
 ]
 
 [[package]]
@@ -4199,9 +4198,9 @@ checksum = "63e935c45e09cc6dcf00d2f0b2d630a58f4095320223d47fc68918722f0538b6"
 
 [[package]]
 name = "rapier2d"
-version = "0.16.0"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12435d8c8ea7eee77be71f90e87fea038e9630baf89008e4602f68fe39fcac06"
+checksum = "32b1c1ed75065adaf01adb8c46a1dad3922fb28de8225dc981481e3584f3af07"
 dependencies = [
  "approx",
  "arrayvec",

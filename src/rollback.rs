@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_ggrs::PlayerInputs;
+use bevy_ggrs::{PlayerInputs, Rollback};
 use bevy_rapier2d::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use ggrs::{Frame, InputStatus, PlayerHandle};
@@ -49,9 +49,10 @@ pub struct GGRSInput {
 }
 
 pub fn input(
-    _handle: In<PlayerHandle>, // Required by bevy_ggrs
+    handle: In<PlayerHandle>, // Required by bevy_ggrs
+    local_handles: Res<LocalHandles>,
     keyboard_input: Res<Input<KeyCode>>,
-    random: Res<RandomInput>,
+    mut random: ResMut<RandomInput>,
     physics_enabled: Res<PhysicsEnabled>,
     mut hashes: ResMut<FrameHashes>,
     validatable_frame: Res<ValidatableFrame>,
@@ -102,11 +103,14 @@ pub fn input(
         input |= INPUT_RIGHT;
     }
 
-    if input == 0 && random.on {
+    // toggle off random input if our local moves at all
+    if input != 0 && random.on && local_handles.handles.contains(&handle.0) {
+        random.on = false;
+    } else if input == 0 && random.on && local_handles.handles.contains(&handle.0) {
         let mut rng = thread_rng();
         // Return a random input sometimes, or maybe nothing.
         // Helps to trigger input-based rollbacks from the unplayed side
-        match rng.gen_range(0..6) {
+        match rng.gen_range(0..10) {
             0 => input = INPUT_UP,
             1 => input = INPUT_LEFT,
             2 => input = INPUT_DOWN,
@@ -194,5 +198,17 @@ pub fn apply_inputs(
         } else {
             v.linvel.y = 0.;
         }
+    }
+}
+
+pub fn force_update_rollbackables(
+    mut t_query: Query<&mut Transform, With<Rollback>>,
+    mut v_query: Query<&mut Velocity, With<Rollback>>,
+) {
+    for mut t in t_query.iter_mut() {
+        t.set_changed();
+    }
+    for mut v in v_query.iter_mut() {
+        v.set_changed();
     }
 }

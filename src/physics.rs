@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy::{ecs::schedule::ShouldRun, reflect::Reflect};
-use bevy_rapier2d::prelude::RapierContext;
+use bevy::reflect::Reflect;
+use bevy_rapier2d::prelude::{RapierConfiguration, RapierContext};
 use ggrs::Frame;
 
 use crate::desync::FrameHashes;
@@ -47,6 +47,7 @@ pub fn toggle_physics(
     enable_physics_after: Res<EnablePhysicsAfter>,
     current_frame: Res<CurrentFrame>,
     mut physics_enabled: ResMut<PhysicsEnabled>,
+    mut config: ResMut<RapierConfiguration>,
 ) {
     log::info!(
         "Physics on frame {:?} {:?} {:?}",
@@ -64,14 +65,8 @@ pub fn toggle_physics(
         );
         physics_enabled.0 = should_activate;
     }
-}
 
-pub fn should_run_physics(physics_enabled: Res<PhysicsEnabled>) -> ShouldRun {
-    if physics_enabled.0 {
-        ShouldRun::Yes
-    } else {
-        ShouldRun::No
-    }
+    config.physics_pipeline_active = physics_enabled.0;
 }
 
 pub fn rollback_rapier_context(

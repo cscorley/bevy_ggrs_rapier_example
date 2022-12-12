@@ -220,7 +220,8 @@ fn main() {
                         // The `frame_validator` relies on the execution of `apply_inputs` and must come after.
                         // It could happen anywhere else, I just stuck it here to be clear.
                         // If this is causing your game to quit, you have a bug!
-                        .with_system(frame_validator.after(apply_inputs)),
+                        .with_system(frame_validator.after(apply_inputs))
+                        .with_system(force_update_rollbackables),
                 )
                 // The next 3 stages are all bevy_rapier stages.  Best to leave these in order.
                 .with_stage_after(
@@ -233,11 +234,11 @@ fn main() {
                 .with_stage_after(
                     PhysicsStages::SyncBackend,
                     PhysicsStages::StepSimulation,
-                    SystemStage::parallel()
-                        .with_run_criteria(should_run_physics)
-                        .with_system_set(RapierPhysicsPlugin::<NoUserData>::get_systems(
+                    SystemStage::parallel().with_system_set(
+                        RapierPhysicsPlugin::<NoUserData>::get_systems(
                             PhysicsStages::StepSimulation,
-                        )),
+                        ),
+                    ),
                 )
                 .with_stage_after(
                     PhysicsStages::StepSimulation,
@@ -291,7 +292,7 @@ fn main() {
 
         // This is on always, we will toggle the physics system via a run condition
         // because we need the writeback stage to always execute
-        physics_pipeline_active: true,
+        physics_pipeline_active: false,
 
         // Do not check internal structures for transform changes
         force_update_from_transform_changes: true,
@@ -380,7 +381,7 @@ pub fn startup(
         .insert(Name::new("Ball"))
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::ball(4.))
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.)))) // ColliderScale important so we don't rollback to bad shape!
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
@@ -394,7 +395,7 @@ pub fn startup(
         .insert(Player { handle: 0 })
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::cuboid(8., 8.))
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.)))) // ColliderScale important so we don't rollback to bad shape!
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
@@ -409,7 +410,7 @@ pub fn startup(
         .insert(Player { handle: 1 })
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::cuboid(8., 8.))
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.)))) // ColliderScale important so we don't rollback to bad shape!
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::default())
         .insert(RigidBody::Dynamic)
@@ -426,7 +427,7 @@ pub fn startup(
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Floor"))
         .insert(Collider::cuboid(overlapping_box_length, thickness))
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -437,7 +438,7 @@ pub fn startup(
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Left Wall"))
         .insert(Collider::cuboid(thickness, overlapping_box_length))
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -448,7 +449,7 @@ pub fn startup(
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Right Wall"))
         .insert(Collider::cuboid(thickness, overlapping_box_length))
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -459,7 +460,7 @@ pub fn startup(
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ceiling"))
         .insert(Collider::cuboid(overlapping_box_length, thickness))
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -478,7 +479,7 @@ pub fn startup(
             ])
             .unwrap(),
         )
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -496,7 +497,7 @@ pub fn startup(
             ])
             .unwrap(),
         )
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -514,7 +515,7 @@ pub fn startup(
             ])
             .unwrap(),
         )
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
@@ -532,7 +533,7 @@ pub fn startup(
             ])
             .unwrap(),
         )
-        .insert(ColliderScale::Absolute(Vec2::from((1., 1.))))
+        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
         .insert(RigidBody::Fixed)
