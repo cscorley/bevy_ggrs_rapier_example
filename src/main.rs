@@ -40,8 +40,8 @@ mod prelude {
     pub const ROLLBACK_SYSTEMS: &str = "rollback_systems";
     pub const GAME_SYSTEMS: &str = "game_systems";
     pub const CHECKSUM_SYSTEMS: &str = "checksum_systems";
-    pub const MAX_PREDICTION: usize = 8;
-    pub const INPUT_DELAY: usize = 2;
+    pub const MAX_PREDICTION: usize = 5;
+    pub const INPUT_DELAY: usize = 3;
 
     // Having a "load screen" time helps with initial desync issues.  No idea why,
     // but this tests well. There is also sometimes a bug when a rollback to frame 0
@@ -103,10 +103,6 @@ fn main() {
         })
         .add_plugins(
             DefaultPlugins
-                .set(AssetPlugin {
-                    watch_for_changes: true,
-                    ..default()
-                })
                 .set(WindowPlugin {
                     window: window_info,
                     ..default()
