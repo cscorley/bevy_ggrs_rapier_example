@@ -164,8 +164,8 @@ fn main() {
                         .with_system(toggle_physics.after(update_rollback_status))
                         .with_system(rollback_rapier_context.after(toggle_physics)),
                 )
-                // Add our game logic and systems here.
-                // If it impacts what the physics engine should consider, do it here.
+                // Add our game logic and systems here.  If it impacts what the
+                // physics engine should consider, do it here.
                 .with_stage_after(
                     ROLLBACK_SYSTEMS,
                     GAME_SYSTEMS,

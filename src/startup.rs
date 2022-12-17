@@ -17,7 +17,7 @@ pub fn startup(mut commands: Commands) {
     commands.insert_resource(LocalHandles::default());
     //commands.insert_resource(WrappedSessionType::default());
 
-    // physics togglging
+    // physics toggling
     commands.insert_resource(EnablePhysicsAfter::default());
     commands.insert_resource(PhysicsEnabled::default());
 

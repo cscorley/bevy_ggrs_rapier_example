@@ -45,13 +45,14 @@ pub struct RollbackStatus {
 
 pub fn update_confirmed_frame(
     mut confirmed_frame: ResMut<ConfirmedFrame>,
+    current_frame: Res<CurrentFrame>,
     session: Option<Res<Session<GGRSConfig>>>,
 ) {
     if let Some(session) = session {
         match &*session {
-            Session::SyncTestSession(_) => confirmed_frame.0 += 1,
+            Session::SyncTestSession(_) => confirmed_frame.0 = current_frame.0,
             Session::P2PSession(s) => confirmed_frame.0 = s.confirmed_frame(),
-            Session::SpectatorSession(_) => confirmed_frame.0 += 1,
+            Session::SpectatorSession(_) => confirmed_frame.0 = current_frame.0,
         }
     }
 
@@ -65,13 +66,14 @@ pub fn update_current_frame(mut current_frame: ResMut<CurrentFrame>) {
 
 pub fn update_current_session_frame(
     mut current_session_frame: ResMut<CurrentSessionFrame>,
+    current_frame: Res<CurrentFrame>,
     session: Option<Res<Session<GGRSConfig>>>,
 ) {
     if let Some(session) = session {
         match &*session {
-            Session::SyncTestSession(_) => current_session_frame.0 += 1,
+            Session::SyncTestSession(_) => current_session_frame.0 = current_frame.0,
             Session::P2PSession(s) => current_session_frame.0 = s.current_frame(),
-            Session::SpectatorSession(_) => current_session_frame.0 += 1,
+            Session::SpectatorSession(_) => current_session_frame.0 = current_frame.0,
         }
     }
 
@@ -84,7 +86,8 @@ pub fn update_rollback_status(
     mut rollback_status: ResMut<RollbackStatus>,
 ) {
     rollback_status.is_rollback = rollback_status.last_frame > current_frame.0;
-    rollback_status.is_replay = current_session_frame.0 > current_frame.0;
+    rollback_status.is_replay =
+        rollback_status.is_rollback || current_session_frame.0 > current_frame.0;
 
     if rollback_status.is_rollback {
         rollback_status.rollback_frame = current_frame.0;

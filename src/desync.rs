@@ -68,6 +68,7 @@ pub fn frame_validator(
                         "Failed checksum checks {:?} != {:?}",
                         sx, rx
                     );
+
                     // Set both as validated
                     log::info!("Frame validated {:?}", sx.frame);
                     sx.validated = true;

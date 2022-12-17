@@ -1,10 +1,10 @@
 use crate::prelude::*;
 
 // These are just 16 bit for bit-packing alignment in the input struct
-const INPUT_UP: u16 = 0b0001;
-const INPUT_DOWN: u16 = 0b0010;
-const INPUT_LEFT: u16 = 0b0100;
-const INPUT_RIGHT: u16 = 0b1000;
+const INPUT_UP: u16 = 0b00001;
+const INPUT_DOWN: u16 = 0b00010;
+const INPUT_LEFT: u16 = 0b00100;
+const INPUT_RIGHT: u16 = 0b01000;
 
 /// GGRS player handle, we use this to associate GGRS handles back to our [`Entity`]
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Component)]
@@ -21,7 +21,7 @@ pub struct LocalHandles {
 /// The main GGRS configuration type
 #[derive(Debug)]
 pub struct GGRSConfig;
-impl bevy_ggrs::ggrs::Config for GGRSConfig {
+impl Config for GGRSConfig {
     type Input = GGRSInput;
     // bevy_ggrs doesn't really use State, so just make this a small whatever
     type State = u8;
@@ -50,7 +50,7 @@ pub struct GGRSInput {
 }
 
 pub fn input(
-    handle: In<PlayerHandle>, // Required by bevy_ggrs
+    handle: In<PlayerHandle>,
     local_handles: Res<LocalHandles>,
     keyboard_input: Res<Input<KeyCode>>,
     mut random: ResMut<RandomInput>,
@@ -91,6 +91,11 @@ pub fn input(
         };
     }
 
+    if input_query.is_empty() {
+        log::info!("input query is empty");
+    }
+
+    // Build the input
     if keyboard_input.pressed(KeyCode::W) {
         input |= INPUT_UP;
     }
@@ -168,6 +173,7 @@ pub fn apply_inputs(
         }
 
         // Do not do anything until physics are live
+        // This is a poor mans emulation to stop accidentally tripping velocity updates
         if !physics_enabled.0 {
             continue;
         }
