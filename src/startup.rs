@@ -96,60 +96,49 @@ pub fn respawn_all(
     // Get the Entities in reverse for easy popping
     let mut sorted_entity_pool: Vec<Entity> = sorted_spawn_pool.iter().map(|p| p.0).rev().collect();
 
-    // This will allow our ball to bounce around a bit nicer.
-    // It is not necessary for this demo.
-    let mut restitution = Restitution::coefficient(0.5);
-    restitution.combine_rule = CoefficientCombineRule::Max;
-
-    let mut friction = Friction::coefficient(0.1);
-    friction.combine_rule = CoefficientCombineRule::Min;
-
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ball"))
         .insert(Rollback::new(rip.next_id()))
-        .insert(Collider::ball(4.))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
-        .insert(restitution)
-        .insert(friction)
-        .insert(RigidBody::Dynamic)
-        .insert(Velocity::default())
-        .insert(Sleeping::default())
-        .insert(Ccd::enabled())
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(0., 10., 0.));
+        .insert(DynamicColliderBundle {
+            collider: Collider::ball(4.),
+            ccd: Ccd::enabled(),
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(0., 10., 0.),
+            ..default()
+        });
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Player 1"))
         .insert(Player { handle: 0 })
         .insert(Rollback::new(rip.next_id()))
-        .insert(Collider::cuboid(8., 8.))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
-        .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Dynamic)
-        .insert(Velocity::default())
-        .insert(Sleeping::default())
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(-10., -50., 0.));
+        .insert(DynamicColliderBundle {
+            collider: Collider::cuboid(8., 8.),
+            locked_axes: LockedAxes::ROTATION_LOCKED,
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(-10., -50., 0.),
+            ..default()
+        });
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Player 2"))
         .insert(Player { handle: 1 })
         .insert(Rollback::new(rip.next_id()))
-        .insert(Collider::cuboid(8., 8.))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
-        .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Dynamic)
-        .insert(Velocity::default())
-        .insert(Sleeping::default())
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(10., -50., 0.));
+        .insert(DynamicColliderBundle {
+            collider: Collider::cuboid(8., 8.),
+            locked_axes: LockedAxes::ROTATION_LOCKED,
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(10., -50., 0.),
+            ..default()
+        });
 
     let thickness = 10.0;
     let box_length = 200.0;
@@ -158,125 +147,117 @@ pub fn respawn_all(
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Floor"))
-        .insert(Collider::cuboid(overlapping_box_length, thickness))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(0., -box_length, 0.));
+        .insert(FixedColliderBundle {
+            collider: Collider::cuboid(overlapping_box_length, thickness),
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(0., -box_length, 0.),
+            ..default()
+        });
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Left Wall"))
-        .insert(Collider::cuboid(thickness, overlapping_box_length))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(-box_length, 0., 0.));
+        .insert(FixedColliderBundle {
+            collider: Collider::cuboid(thickness, overlapping_box_length),
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(-box_length, 0., 0.),
+            ..default()
+        });
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Right Wall"))
-        .insert(Collider::cuboid(thickness, overlapping_box_length))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(box_length, 0., 0.));
+        .insert(FixedColliderBundle {
+            collider: Collider::cuboid(thickness, overlapping_box_length),
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(box_length, 0., 0.),
+            ..default()
+        });
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ceiling"))
-        .insert(Collider::cuboid(overlapping_box_length, thickness))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(0., box_length, 0.));
+        .insert(FixedColliderBundle {
+            collider: Collider::cuboid(overlapping_box_length, thickness),
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(0., box_length, 0.),
+            ..default()
+        });
 
     let corner_position = box_length - thickness + 4.;
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Southeast Corner"))
-        .insert(
-            Collider::convex_hull(&[
+        .insert(FixedColliderBundle {
+            collider: Collider::convex_hull(&[
                 Vec2::new(0., 0.),
                 Vec2::new(-thickness * 2., 0.),
                 Vec2::new(0., thickness * 2.),
             ])
             .unwrap(),
-        )
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(corner_position, -corner_position, 0.));
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(corner_position, -corner_position, 0.),
+            ..default()
+        });
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Southwest Corner"))
-        .insert(
-            Collider::convex_hull(&[
+        .insert(FixedColliderBundle {
+            collider: Collider::convex_hull(&[
                 Vec2::new(0., 0.),
                 Vec2::new(thickness * 2., 0.),
                 Vec2::new(0., thickness * 2.),
             ])
             .unwrap(),
-        )
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(-corner_position, -corner_position, 0.));
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(-corner_position, -corner_position, 0.),
+            ..default()
+        });
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Northeast Corner"))
-        .insert(
-            Collider::convex_hull(&[
+        .insert(FixedColliderBundle {
+            collider: Collider::convex_hull(&[
                 Vec2::new(0., 0.),
                 Vec2::new(-thickness * 2., 0.),
                 Vec2::new(0., -thickness * 2.),
             ])
             .unwrap(),
-        )
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(corner_position, corner_position, 0.));
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(corner_position, corner_position, 0.),
+            ..default()
+        });
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Northwest Corner"))
-        .insert(
-            Collider::convex_hull(&[
+        .insert(FixedColliderBundle {
+            collider: Collider::convex_hull(&[
                 Vec2::new(0., 0.),
                 Vec2::new(thickness * 2., 0.),
                 Vec2::new(0., -thickness * 2.),
             ])
             .unwrap(),
-        )
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(Friction::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
+            ..default()
+        })
+        .insert(TransformBundle {
+            local: Transform::from_xyz(-corner_position, corner_position, 0.),
+            ..default()
+        });
 }

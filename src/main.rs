@@ -1,4 +1,5 @@
 mod checksum;
+mod colliders;
 mod desync;
 mod frames;
 mod log_plugin;
@@ -12,6 +13,7 @@ mod startup;
 // A prelude to simplify other file imports
 mod prelude {
     pub use crate::checksum::*;
+    pub use crate::colliders::*;
     pub use crate::desync::*;
     pub use crate::frames::*;
     pub use crate::log_plugin::LogSettings;
