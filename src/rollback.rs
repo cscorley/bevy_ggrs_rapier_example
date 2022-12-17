@@ -176,17 +176,27 @@ pub fn apply_inputs(
             continue;
         }
 
-        let horizontal = if input & INPUT_LEFT != 0 && input & INPUT_RIGHT == 0 {
+        let right = input & INPUT_RIGHT != 0;
+        let left = input & INPUT_LEFT != 0;
+        let up = input & INPUT_UP != 0;
+        let down = input & INPUT_DOWN != 0;
+
+        let direction_right = right && !left;
+        let direction_left = left && !right;
+        let direction_up = up && !down;
+        let direction_down = down && !up;
+
+        let horizontal = if direction_left {
             -1.
-        } else if input & INPUT_LEFT == 0 && input & INPUT_RIGHT != 0 {
+        } else if direction_right {
             1.
         } else {
             0.
         };
 
-        let vertical = if input & INPUT_DOWN != 0 && input & INPUT_UP == 0 {
+        let vertical = if direction_down {
             -1.
-        } else if input & INPUT_DOWN == 0 && input & INPUT_UP != 0 {
+        } else if direction_up {
             1.
         } else {
             0.
