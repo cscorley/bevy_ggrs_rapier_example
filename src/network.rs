@@ -63,30 +63,13 @@ fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
     commands.insert_resource(Session::P2PSession(session));
 }
 
-pub fn print_events_system(session: Option<ResMut<Session<GGRSConfig>>>) {
+pub fn handle_p2p_events(session: Option<ResMut<Session<GGRSConfig>>>) {
     if let Some(mut session) = session {
         if let Session::P2PSession(session) = session.as_mut() {
             for event in session.events() {
-                println!("GGRS Event: {:?}", event);
-            }
-        }
-    }
-}
-
-pub fn print_network_stats_system(
-    time: Res<Time>,
-    mut timer: ResMut<NetworkStatsTimer>,
-    session: Option<Res<Session<GGRSConfig>>>,
-) {
-    if let Some(session) = session {
-        // print only when timer runs out
-        if timer.0.tick(time.delta()).just_finished() {
-            if let Session::P2PSession(session) = session.as_ref() {
-                let num_players = session.num_players() as usize;
-                for i in 0..num_players {
-                    if let Ok(stats) = session.network_stats(i) {
-                        println!("NetworkStats for player {}: {:?}", i, stats);
-                    }
+                info!("GGRS Event: {:?}", event);
+                if let ggrs::GGRSEvent::Disconnected { addr: _ } = event {
+                    panic!("Other player disconnected");
                 }
             }
         }
