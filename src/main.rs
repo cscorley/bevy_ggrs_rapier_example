@@ -26,6 +26,7 @@ mod prelude {
     pub use bevy::log::*;
     pub use bevy::prelude::*;
     pub use bevy::tasks::IoTaskPool;
+    pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
     pub use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
     pub use bevy_inspector_egui::WorldInspectorPlugin;
     pub use bevy_inspector_egui_rapier::InspectableRapierPlugin;
@@ -101,6 +102,9 @@ fn main() {
             level: Level::INFO,
             ..default()
         })
+        .insert_resource(FramepaceSettings {
+            limiter: Limiter::from_framerate(FPS as f64),
+        })
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -119,8 +123,7 @@ fn main() {
         .add_system(toggle_random_input)
         .add_system(bevy::window::close_on_esc)
         .add_system(update_matchbox_socket)
-        .add_system(print_network_stats_system)
-        .add_system(print_events_system);
+        .add_system(handle_p2p_events);
 
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
@@ -252,7 +255,8 @@ fn main() {
             ..default()
         })
         .add_plugin(InspectableRapierPlugin)
-        .add_plugin(WorldInspectorPlugin::default());
+        .add_plugin(WorldInspectorPlugin::default())
+        .add_plugin(FramepacePlugin);
 
     app.run();
 }

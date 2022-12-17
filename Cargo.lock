@@ -788,6 +788,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_framepace"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5ae983870b93cdc5bc3484dd6928d7c3217e4a31ccbe4dfb0680dc00c06b47f"
+dependencies = [
+ "bevy",
+ "wasm_thread",
+]
+
+[[package]]
 name = "bevy_ggrs"
 version = "0.10.0"
 source = "git+https://github.com/gschup/bevy_ggrs/?branch=main#b730a0b1a765bca2cb79466c36d86cac08ae1a12"
@@ -807,6 +817,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy-inspector-egui-rapier",
+ "bevy_framepace",
  "bevy_ggrs",
  "bevy_rapier2d",
  "bincode",
@@ -5355,6 +5366,19 @@ name = "wasm-bindgen-shared"
 version = "0.2.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c38c045535d93ec4f0b4defec448e4291638ee608530863b1e2ba115d4fff7f"
+
+[[package]]
+name = "wasm_thread"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a52fc987e67957cab58160d1ea273a2886972ef6f59c7fa0c02e9fe2c8e11706"
+dependencies = [
+ "async-channel",
+ "futures",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
+]
 
 [[package]]
 name = "web-sys"
