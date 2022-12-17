@@ -10,10 +10,10 @@ bevy-inspector-egui = { version = "0.14.0" }
 bevy-inspector-egui-rapier = { version = "0.8.0", features = ["rapier2d"] }
 bevy_ggrs = { git = "https://github.com/gschup/bevy_ggrs/", branch = "main", features = [
 ] }
-#bevy_rapier2d = { version = "0.18.0", features = [
+#bevy_rapier2d = { version = "0.19.0", features = [
+#bevy_rapier2d = { path = "../bevy_rapier/bevy_rapier2d", features = [
 # This branch must be used until dimforge/bevy_rapier PRs #233 is merged
-#bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "more-deterministic-context", features = [
-bevy_rapier2d = { path = "../bevy_rapier/bevy_rapier2d", features = [
+bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "more-deterministic-context", features = [
     "enhanced-determinism",
     "serde-serialize",
 ] }
@@ -30,4 +30,5 @@ tracing-subscriber = { version = "0.3.1", features = [
 tracing-log = "0.1.2"
 
 [patch.crates-io]
-ggrs = { git = "https://github.com/gschup/ggrs" } # Force to same version
+ggrs = { git = "https://github.com/gschup/ggrs" }                                                          # Force to same version
+bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "more-deterministic-context" }
