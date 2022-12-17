@@ -1,19 +1,26 @@
+mod checksum;
 mod desync;
 mod frames;
 mod log_plugin;
+mod network;
 mod physics;
+mod random_movement;
 mod rollback;
 mod spawn;
+mod startup;
 
 // A prelude to simplify other file imports
 mod prelude {
+    pub use crate::checksum::*;
     pub use crate::desync::*;
     pub use crate::frames::*;
     pub use crate::log_plugin::LogSettings;
+    pub use crate::network::*;
     pub use crate::physics::*;
+    pub use crate::random_movement::*;
     pub use crate::rollback::*;
     pub use crate::spawn::*;
-    pub use crate::*;
+    pub use crate::startup::*;
     pub use bevy::log::*;
     pub use bevy::prelude::*;
     pub use bevy::tasks::IoTaskPool;
@@ -56,22 +63,6 @@ mod prelude {
 }
 
 use crate::prelude::*;
-
-/// Controls whether our opponent will inject random inputs while inactive.
-/// This is useful for testing rollbacks locally and can be toggled off with `r`
-/// and `t`.
-#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
-#[reflect(Hash, Resource, PartialEq)]
-pub struct RandomInput {
-    pub on: bool,
-}
-
-#[derive(Default, Resource)]
-pub struct WebRtcSocketWrapper(pub Option<WebRtcSocket>);
-
-/// Not necessary for this demo, but useful debug output sometimes.
-#[derive(Resource)]
-struct NetworkStatsTimer(Timer);
 
 fn main() {
     let mut app = App::new();
@@ -123,23 +114,22 @@ fn main() {
         )
         // Add our own log plugin to help with comparing desync output
         .add_plugin(log_plugin::LogPlugin)
-        .add_startup_system(startup)
-        .add_system(keyboard_input)
-        .add_system(bevy::window::close_on_esc)
-        .add_system(update_matchbox_socket)
-        .insert_resource(NetworkStatsTimer(Timer::from_seconds(
-            2.0,
-            TimerMode::Repeating,
-        )))
-        .add_system(print_network_stats_system)
-        .add_system(print_events_system)
         // We don't really draw anything ourselves, just show us the raw physics colliders
         .add_plugin(RapierDebugRenderPlugin {
             enabled: true,
             ..default()
         })
         .add_plugin(InspectableRapierPlugin)
-        .add_plugin(WorldInspectorPlugin::default());
+        .add_plugin(WorldInspectorPlugin::default())
+        .add_startup_system(startup)
+        .add_startup_system(reset_rapier)
+        .add_startup_system(respawn_all)
+        .add_startup_system(connect)
+        .add_system(keyboard_input)
+        .add_system(bevy::window::close_on_esc)
+        .add_system(update_matchbox_socket)
+        .add_system(print_network_stats_system)
+        .add_system(print_events_system);
 
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
@@ -265,339 +255,4 @@ fn main() {
     });
 
     app.run();
-}
-
-/// Non-game input.  Just chucking this into the stack carelessly.
-pub fn keyboard_input(mut commands: Commands, keys: Res<Input<KeyCode>>) {
-    if keys.just_pressed(KeyCode::R) {
-        commands.insert_resource(RandomInput { on: true });
-    }
-    if keys.just_pressed(KeyCode::T) {
-        commands.insert_resource(RandomInput { on: false });
-    }
-}
-
-pub fn startup(
-    mut commands: Commands,
-    mut rip: ResMut<RollbackIdProvider>,
-    mut rapier: ResMut<RapierContext>,
-    spawn_pool: Query<(Entity, &DeterministicSpawn)>,
-) {
-    // Add a bit more CCD.  This is simply my preference and should not impact the Rapier/GGRS combo.
-    rapier.integration_parameters.max_ccd_substeps = 5;
-
-    // Insert our game state, already setup with the (hopefully) empty RapierContext
-    if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        let rapier_checksum = fletcher16(&context_bytes);
-        log::info!("Context hash at init: {}", rapier_checksum);
-
-        commands.insert_resource(PhysicsRollbackState {
-            rapier_state: Some(context_bytes),
-            rapier_checksum,
-            ..default()
-        })
-    } else {
-        commands.insert_resource(PhysicsRollbackState::default());
-    }
-
-    // A bunch of stuff for our wacky systems :-)
-
-    // frame updating
-    commands.insert_resource(LastFrame::default());
-    commands.insert_resource(CurrentFrame::default());
-    commands.insert_resource(CurrentSessionFrame::default());
-    commands.insert_resource(ConfirmedFrame::default());
-    commands.insert_resource(RollbackStatus::default());
-    commands.insert_resource(ValidatableFrame::default());
-
-    // physics toggling
-    commands.insert_resource(EnablePhysicsAfter::default());
-    commands.insert_resource(PhysicsEnabled::default());
-
-    // desync detection
-    commands.insert_resource(FrameHashes::default());
-    commands.insert_resource(RxFrameHashes::default());
-
-    // ggrs local players
-    commands.insert_resource(LocalHandles::default());
-
-    // random movement
-    commands.insert_resource(RandomInput { on: true });
-
-    commands.spawn(Camera2dBundle::default());
-
-    // Everything must be spawned in the same order, every time,
-    // deterministically.  There is also potential for bevy itself to return
-    // queries to bevy_rapier that do not have the entities in the same order,
-    // but in my experience with this example, that happens somewhat rarely.  A
-    // patch to bevy_rapier is required to ensure some sort of Entity order
-    // otherwise on the reading end, much like the below sorting of our spawn.
-    // WARNING:  This is something on my branch only!  This is in bevy_rapier PR #233
-
-    // Get our entities and sort them by the spawn component index
-    let mut sorted_spawn_pool: Vec<(Entity, &DeterministicSpawn)> = spawn_pool.iter().collect();
-    sorted_spawn_pool.sort_by_key(|e| e.1.index);
-    // Get the Entities in reverse for easy popping
-    let mut sorted_entity_pool: Vec<Entity> = sorted_spawn_pool.iter().map(|p| p.0).rev().collect();
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Ball"))
-        .insert(Rollback::new(rip.next_id()))
-        .insert(Collider::ball(4.))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
-        .insert(RigidBody::Dynamic)
-        .insert(Velocity::default())
-        .insert(Sleeping::default())
-        .insert(Ccd::enabled())
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(0., 10., 0.));
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Player 1"))
-        .insert(Player { handle: 0 })
-        .insert(Rollback::new(rip.next_id()))
-        .insert(Collider::cuboid(8., 8.))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
-        .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(Restitution::default())
-        .insert(RigidBody::Dynamic)
-        .insert(Velocity::default())
-        .insert(Sleeping::default())
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(-10., -50., 0.));
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Player 2"))
-        .insert(Player { handle: 1 })
-        .insert(Rollback::new(rip.next_id()))
-        .insert(Collider::cuboid(8., 8.))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
-        .insert(LockedAxes::ROTATION_LOCKED)
-        .insert(Restitution::default())
-        .insert(RigidBody::Dynamic)
-        .insert(Velocity::default())
-        .insert(Sleeping::default())
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(10., -50., 0.));
-
-    let thickness = 10.0;
-    let box_length = 200.0;
-    let overlapping_box_length = box_length + thickness;
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Floor"))
-        .insert(Collider::cuboid(overlapping_box_length, thickness))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(0., -box_length, 0.));
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Left Wall"))
-        .insert(Collider::cuboid(thickness, overlapping_box_length))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(-box_length, 0., 0.));
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Right Wall"))
-        .insert(Collider::cuboid(thickness, overlapping_box_length))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(box_length, 0., 0.));
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Ceiling"))
-        .insert(Collider::cuboid(overlapping_box_length, thickness))
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(0., box_length, 0.));
-
-    let corner_position = box_length - thickness + 4.;
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Southeast Corner"))
-        .insert(
-            Collider::convex_hull(&[
-                Vec2::new(0., 0.),
-                Vec2::new(-thickness * 2., 0.),
-                Vec2::new(0., thickness * 2.),
-            ])
-            .unwrap(),
-        )
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(corner_position, -corner_position, 0.));
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Southwest Corner"))
-        .insert(
-            Collider::convex_hull(&[
-                Vec2::new(0., 0.),
-                Vec2::new(thickness * 2., 0.),
-                Vec2::new(0., thickness * 2.),
-            ])
-            .unwrap(),
-        )
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(-corner_position, -corner_position, 0.));
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Northeast Corner"))
-        .insert(
-            Collider::convex_hull(&[
-                Vec2::new(0., 0.),
-                Vec2::new(-thickness * 2., 0.),
-                Vec2::new(0., -thickness * 2.),
-            ])
-            .unwrap(),
-        )
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(corner_position, corner_position, 0.));
-
-    commands
-        .entity(sorted_entity_pool.pop().unwrap())
-        .insert(Name::new("Northwest Corner"))
-        .insert(
-            Collider::convex_hull(&[
-                Vec2::new(0., 0.),
-                Vec2::new(thickness * 2., 0.),
-                Vec2::new(0., -thickness * 2.),
-            ])
-            .unwrap(),
-        )
-        .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
-        .insert(LockedAxes::default())
-        .insert(Restitution::default())
-        .insert(RigidBody::Fixed)
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
-
-    // Connect immediately.
-    // This starts to poll the matchmaking service for our other player to connect.
-    let (socket, message_loop) = WebRtcSocket::new(MATCHBOX_ADDR);
-    let task_pool = IoTaskPool::get();
-    task_pool.spawn(message_loop).detach();
-    commands.insert_resource(WebRtcSocketWrapper(Some(socket)));
-}
-
-pub fn update_matchbox_socket(commands: Commands, mut socket_res: ResMut<WebRtcSocketWrapper>) {
-    if let Some(socket) = socket_res.0.as_mut() {
-        socket.accept_new_connections(); // needs mut
-        if socket.players().len() >= NUM_PLAYERS {
-            // take the socket
-            let socket = socket_res.0.take().unwrap();
-            create_ggrs_session(commands, socket);
-        }
-    }
-}
-
-fn create_ggrs_session(mut commands: Commands, socket: WebRtcSocket) {
-    // create a new ggrs session
-    let mut session_build = SessionBuilder::<GGRSConfig>::new()
-        .with_num_players(NUM_PLAYERS)
-        .with_max_prediction_window(MAX_PREDICTION)
-        .with_fps(FPS)
-        .expect("Invalid FPS")
-        .with_input_delay(INPUT_DELAY)
-        // Sparse saving should be off since we are serializing every frame
-        // anyway.  With it on, it seems that there are going to be more frames
-        // in between rollbacks and that can lead to more inaccuracies building
-        // up over time.
-        .with_sparse_saving_mode(false);
-
-    // add players
-    let mut handles = Vec::new();
-    for (i, player_type) in socket.players().iter().enumerate() {
-        if *player_type == PlayerType::Local {
-            handles.push(i);
-        }
-        session_build = session_build
-            .add_player(player_type.clone(), i)
-            .expect("Invalid player added.");
-    }
-
-    // start the GGRS session
-    let session = session_build
-        .start_p2p_session(socket)
-        .expect("Session could not be created.");
-
-    commands.insert_resource(LocalHandles { handles });
-
-    // bevy_ggrs uses this to know when to start
-    commands.insert_resource(Session::P2PSession(session));
-}
-
-fn print_events_system(session: Option<ResMut<Session<GGRSConfig>>>) {
-    if let Some(mut session) = session {
-        if let Session::P2PSession(session) = session.as_mut() {
-            for event in session.events() {
-                println!("GGRS Event: {:?}", event);
-            }
-        }
-    }
-}
-
-fn print_network_stats_system(
-    time: Res<Time>,
-    mut timer: ResMut<NetworkStatsTimer>,
-    session: Option<Res<Session<GGRSConfig>>>,
-) {
-    if let Some(session) = session {
-        // print only when timer runs out
-        if timer.0.tick(time.delta()).just_finished() {
-            if let Session::P2PSession(session) = session.as_ref() {
-                let num_players = session.num_players() as usize;
-                for i in 0..num_players {
-                    if let Ok(stats) = session.network_stats(i) {
-                        println!("NetworkStats for player {}: {:?}", i, stats);
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Computes the fletcher16 checksum, copied from wikipedia: <https://en.wikipedia.org/wiki/Fletcher%27s_checksum>
-pub fn fletcher16(data: &[u8]) -> u16 {
-    let mut sum1: u16 = 0;
-    let mut sum2: u16 = 0;
-
-    for byte in data {
-        sum1 = (sum1 + *byte as u16) % 255;
-        sum2 = (sum2 + sum1) % 255;
-    }
-
-    (sum2 << 8) | sum1
 }
