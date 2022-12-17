@@ -102,6 +102,7 @@ pub fn respawn_all(
         .insert(Rollback::new(rip.next_id()))
         .insert(DynamicColliderBundle {
             collider: Collider::ball(4.),
+            restitution: Restitution::coefficient(2.0),
             ccd: Ccd::enabled(),
             ..default()
         })
