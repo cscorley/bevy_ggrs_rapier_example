@@ -112,13 +112,6 @@ fn main() {
         )
         // Add our own log plugin to help with comparing desync output
         .add_plugin(log_plugin::LogPlugin)
-        // We don't really draw anything ourselves, just show us the raw physics colliders
-        .add_plugin(RapierDebugRenderPlugin {
-            enabled: true,
-            ..default()
-        })
-        .add_plugin(InspectableRapierPlugin)
-        .add_plugin(WorldInspectorPlugin::default())
         .add_startup_system(startup)
         .add_startup_system(reset_rapier)
         .add_startup_system(respawn_all)
@@ -251,6 +244,15 @@ fn main() {
 
         ..default()
     });
+
+    app
+        // We don't really draw anything ourselves, just show us the raw physics colliders
+        .add_plugin(RapierDebugRenderPlugin {
+            enabled: true,
+            ..default()
+        })
+        .add_plugin(InspectableRapierPlugin)
+        .add_plugin(WorldInspectorPlugin::default());
 
     app.run();
 }
