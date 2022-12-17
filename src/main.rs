@@ -4,49 +4,56 @@ mod log_plugin;
 mod physics;
 mod rollback;
 
-use bevy::prelude::*;
-use bevy::tasks::IoTaskPool;
-use bevy_ggrs::{GGRSPlugin, Rollback, RollbackIdProvider, Session};
-use bevy_rapier2d::prelude::*;
-use desync::*;
-use frames::*;
-use ggrs::{PlayerHandle, PlayerType, SessionBuilder};
-use log_plugin::LogSettings;
-use matchbox_socket::WebRtcSocket;
-use physics::*;
-use rollback::*;
+// A prelude to simplify other file imports
+mod prelude {
+    pub use crate::desync::*;
+    pub use crate::frames::*;
+    pub use crate::log_plugin::LogSettings;
+    pub use crate::physics::*;
+    pub use crate::rollback::*;
+    pub use crate::*;
+    pub use bevy::log::*;
+    pub use bevy::prelude::*;
+    pub use bevy::tasks::IoTaskPool;
+    pub use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
+    pub use bevy_inspector_egui::WorldInspectorPlugin;
+    pub use bevy_inspector_egui_rapier::InspectableRapierPlugin;
+    pub use bevy_rapier2d::prelude::*;
+    pub use bytemuck::{Pod, Zeroable};
+    pub use ggrs::{Frame, InputStatus, PlayerHandle, PlayerType, SessionBuilder};
+    pub use matchbox_socket::WebRtcSocket;
+    pub use rand::{thread_rng, Rng};
 
-use bevy::log::*;
-use bevy_inspector_egui::WorldInspectorPlugin;
-use bevy_inspector_egui_rapier::InspectableRapierPlugin;
+    pub const NUM_PLAYERS: usize = 2;
+    pub const FPS: usize = 60;
+    pub const ROLLBACK_SYSTEMS: &str = "rollback_systems";
+    pub const GAME_SYSTEMS: &str = "game_systems";
+    pub const CHECKSUM_SYSTEMS: &str = "checksum_systems";
+    pub const MAX_PREDICTION: usize = 8;
+    pub const INPUT_DELAY: usize = 2;
 
-const NUM_PLAYERS: usize = 2;
-const FPS: usize = 60;
-const ROLLBACK_SYSTEMS: &str = "rollback_systems";
-const GAME_SYSTEMS: &str = "game_systems";
-const CHECKSUM_SYSTEMS: &str = "checksum_systems";
-const MAX_PREDICTION: usize = 8;
-const INPUT_DELAY: usize = 2;
+    // Having a "load screen" time helps with initial desync issues.  No idea why,
+    // but this tests well. There is also sometimes a bug when a rollback to frame 0
+    // occurs if two clients have high latency.  Having this in place at least for 1
+    // frame helps prevent that :-)
+    pub const LOAD_SECONDS: usize = 1;
 
-// Having a "load screen" time helps with initial desync issues.  No idea why,
-// but this tests well. There is also sometimes a bug when a rollback to frame 0
-// occurs if two clients have high latency.  Having this in place at least for 1
-// frame helps prevent that :-)
-const LOAD_SECONDS: usize = 1;
+    // How far back we'll keep frame hash info for our other player. This should be
+    // some multiple of MAX_PREDICTION, preferrably 3x, so that we can desync detect
+    // outside the rollback and prediction windows.
+    pub const DESYNC_MAX_FRAMES: usize = 30;
 
-// How far back we'll keep frame hash info for our other player. This should be
-// some multiple of MAX_PREDICTION, preferrably 3x, so that we can desync detect
-// outside the rollback and prediction windows.
-const DESYNC_MAX_FRAMES: usize = 30;
+    // TODO: Hey you!!! You, the one reading this!  Yes, you.
+    // Buy gschup a coffee next time you get the chance.
+    // https://ko-fi.com/gschup
+    // They host this match making service for us to use FOR FREE.
+    // It has been an incredibly useful thing I don't have to think about while working
+    // and learning how to implement this stuff and I guarantee it will be for you too.
+    pub const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
+    // TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
+}
 
-// TODO: Hey you!!! You, the one reading this!  Yes, you.
-// Buy gschup a coffee next time you get the chance.
-// https://ko-fi.com/gschup
-// They host this match making service for us to use FOR FREE.
-// It has been an incredibly useful thing I don't have to think about while working
-// and learning how to implement this stuff and I guarantee it will be for you too.
-const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
-// TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
+use crate::prelude::*;
 
 /// Local handles, this should just be 1 entry in this demo, but you may end up wanting to implement 2v2
 #[derive(Default, Resource)]

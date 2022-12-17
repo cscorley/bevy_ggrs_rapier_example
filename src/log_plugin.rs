@@ -1,6 +1,4 @@
-use bevy::app::{App, Plugin};
-use bevy::log::Level;
-use bevy::prelude::Resource;
+use crate::prelude::*;
 use tracing_log::LogTracer;
 use tracing_subscriber::{prelude::*, registry::Registry, EnvFilter};
 
