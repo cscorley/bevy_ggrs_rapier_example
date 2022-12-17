@@ -96,12 +96,22 @@ pub fn respawn_all(
     // Get the Entities in reverse for easy popping
     let mut sorted_entity_pool: Vec<Entity> = sorted_spawn_pool.iter().map(|p| p.0).rev().collect();
 
+    // This will allow our ball to bounce around a bit nicer.
+    // It is not necessary for this demo.
+    let mut restitution = Restitution::coefficient(0.5);
+    restitution.combine_rule = CoefficientCombineRule::Max;
+
+    let mut friction = Friction::coefficient(0.1);
+    friction.combine_rule = CoefficientCombineRule::Min;
+
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ball"))
         .insert(Rollback::new(rip.next_id()))
         .insert(Collider::ball(4.))
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
+        .insert(restitution)
+        .insert(friction)
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
@@ -118,6 +128,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
@@ -133,6 +144,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.))) // ColliderScale important so we don't rollback to bad shape!
         .insert(LockedAxes::ROTATION_LOCKED)
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Dynamic)
         .insert(Velocity::default())
         .insert(Sleeping::default())
@@ -150,6 +162,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Fixed)
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(0., -box_length, 0.));
@@ -161,6 +174,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Fixed)
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(-box_length, 0., 0.));
@@ -172,6 +186,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Fixed)
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(box_length, 0., 0.));
@@ -183,6 +198,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Fixed)
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(0., box_length, 0.));
@@ -202,6 +218,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Fixed)
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(corner_position, -corner_position, 0.));
@@ -220,6 +237,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Fixed)
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(-corner_position, -corner_position, 0.));
@@ -238,6 +256,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Fixed)
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(corner_position, corner_position, 0.));
@@ -256,6 +275,7 @@ pub fn respawn_all(
         .insert(ColliderScale::Absolute(Vec2::new(1., 1.)))
         .insert(LockedAxes::default())
         .insert(Restitution::default())
+        .insert(Friction::default())
         .insert(RigidBody::Fixed)
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(-corner_position, corner_position, 0.));
