@@ -1,3 +1,5 @@
+use ggrs::Config;
+
 use crate::prelude::*;
 
 // These are just 16 bit for bit-packing alignment in the input struct
@@ -89,10 +91,6 @@ pub fn input(
             last_confirmed_frame,
             last_confirmed_hash,
         };
-    }
-
-    if input_query.is_empty() {
-        log::info!("input query is empty");
     }
 
     // Build the input
