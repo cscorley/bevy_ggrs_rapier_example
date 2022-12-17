@@ -10,7 +10,7 @@ pub struct RandomInput {
 }
 
 /// Non-game input.  Just chucking this into the stack carelessly.
-pub fn keyboard_input(mut commands: Commands, keys: Res<Input<KeyCode>>) {
+pub fn toggle_random_input(mut commands: Commands, keys: Res<Input<KeyCode>>) {
     if keys.just_pressed(KeyCode::R) {
         commands.insert_resource(RandomInput { on: true });
     }

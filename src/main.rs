@@ -125,7 +125,7 @@ fn main() {
         .add_startup_system(reset_rapier)
         .add_startup_system(respawn_all)
         .add_startup_system(connect)
-        .add_system(keyboard_input)
+        .add_system(toggle_random_input)
         .add_system(bevy::window::close_on_esc)
         .add_system(update_matchbox_socket)
         .add_system(print_network_stats_system)
