@@ -3,6 +3,7 @@ mod frames;
 mod log_plugin;
 mod physics;
 mod rollback;
+mod spawn;
 
 // A prelude to simplify other file imports
 mod prelude {
@@ -11,6 +12,7 @@ mod prelude {
     pub use crate::log_plugin::LogSettings;
     pub use crate::physics::*;
     pub use crate::rollback::*;
+    pub use crate::spawn::*;
     pub use crate::*;
     pub use bevy::log::*;
     pub use bevy::prelude::*;
@@ -55,62 +57,17 @@ mod prelude {
 
 use crate::prelude::*;
 
-/// Local handles, this should just be 1 entry in this demo, but you may end up wanting to implement 2v2
-#[derive(Default, Resource)]
-pub struct LocalHandles {
-    pub handles: Vec<PlayerHandle>,
+/// Controls whether our opponent will inject random inputs while inactive.
+/// This is useful for testing rollbacks locally and can be toggled off with `r`
+/// and `t`.
+#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
+#[reflect(Hash, Resource, PartialEq)]
+pub struct RandomInput {
+    pub on: bool,
 }
 
 #[derive(Default, Resource)]
 pub struct WebRtcSocketWrapper(pub Option<WebRtcSocket>);
-
-/// The main GGRS configuration type
-#[derive(Debug)]
-pub struct GGRSConfig;
-impl bevy_ggrs::ggrs::Config for GGRSConfig {
-    type Input = GGRSInput;
-    // bevy_ggrs doesn't really use State, so just make this a small whatever
-    type State = u8;
-    type Address = String;
-}
-
-/// A marker component for spawning first thing when the app launches.  This
-/// just contains some arbitrary data, it actually isn't critical (it's used to
-/// sort, but we could also use [`Entity`])
-#[derive(Component)]
-pub struct DeterministicSpawn {
-    pub index: usize,
-}
-
-#[derive(Bundle)]
-pub struct DeterministicSpawnBundle {
-    pub spawn: DeterministicSpawn,
-    pub name: Name,
-}
-
-impl DeterministicSpawnBundle {
-    pub fn new(index: usize) -> Self {
-        Self {
-            spawn: DeterministicSpawn { index },
-            name: Name::new(format!("Deterministic Spawn {}", index)),
-        }
-    }
-}
-
-/// GGRS player handle, we use this to associate GGRS handles back to our [`Entity`]
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Component)]
-pub struct Player {
-    pub handle: usize,
-}
-
-/// Our GameState, which will be rolled back and we will use to restore our
-/// physics state.
-#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
-#[reflect(Hash, Resource, PartialEq)]
-pub struct GameState {
-    pub rapier_state: Option<Vec<u8>>,
-    pub rapier_checksum: u16,
-}
 
 /// Not necessary for this demo, but useful debug output sometimes.
 #[derive(Resource)]
@@ -187,7 +144,7 @@ fn main() {
     GGRSPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
         .with_input_system(input)
-        .register_rollback_resource::<GameState>()
+        .register_rollback_resource::<PhysicsRollbackState>()
         .register_rollback_resource::<CurrentFrame>()
         // Store everything that Rapier updates in its Writeback stage
         .register_rollback_component::<GlobalTransform>()
@@ -334,13 +291,13 @@ pub fn startup(
         let rapier_checksum = fletcher16(&context_bytes);
         log::info!("Context hash at init: {}", rapier_checksum);
 
-        commands.insert_resource(GameState {
+        commands.insert_resource(PhysicsRollbackState {
             rapier_state: Some(context_bytes),
             rapier_checksum,
             ..default()
         })
     } else {
-        commands.insert_resource(GameState::default());
+        commands.insert_resource(PhysicsRollbackState::default());
     }
 
     // A bunch of stuff for our wacky systems :-)

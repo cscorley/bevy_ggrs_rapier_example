@@ -1,5 +1,14 @@
 use crate::prelude::*;
 
+/// Our physics rollback state container, which will be rolled back and we will
+/// use to restore our physics state.
+#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
+#[reflect(Hash, Resource, PartialEq)]
+pub struct PhysicsRollbackState {
+    pub rapier_state: Option<Vec<u8>>,
+    pub rapier_checksum: u16,
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Resource, Hash, Reflect)]
 #[reflect(Hash)]
 pub struct PhysicsEnabled(pub bool);
@@ -64,7 +73,7 @@ pub fn toggle_physics(
 
 pub fn rollback_rapier_context(
     rollback_status: Res<RollbackStatus>,
-    game_state: Res<GameState>,
+    game_state: Res<PhysicsRollbackState>,
     mut rapier: ResMut<RapierContext>,
 ) {
     let mut checksum = game_state.rapier_checksum;
@@ -123,7 +132,7 @@ pub fn rollback_rapier_context(
 }
 
 pub fn save_rapier_context(
-    mut game_state: ResMut<GameState>,
+    mut game_state: ResMut<PhysicsRollbackState>,
     rapier: Res<RapierContext>,
     mut hashes: ResMut<FrameHashes>,
     confirmed_frame: Res<ConfirmedFrame>,

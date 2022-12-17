@@ -6,13 +6,26 @@ const INPUT_DOWN: u16 = 0b0010;
 const INPUT_LEFT: u16 = 0b0100;
 const INPUT_RIGHT: u16 = 0b1000;
 
-/// Controls whether our opponent will inject random inputs while inactive.
-/// This is useful for testing rollbacks locally and can be toggled off with `r`
-/// and `t`.
-#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
-#[reflect(Hash, Resource, PartialEq)]
-pub struct RandomInput {
-    pub on: bool,
+/// GGRS player handle, we use this to associate GGRS handles back to our [`Entity`]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Component)]
+pub struct Player {
+    pub handle: usize,
+}
+
+/// Local handles, this should just be 1 entry in this demo, but you may end up wanting to implement 2v2
+#[derive(Default, Resource)]
+pub struct LocalHandles {
+    pub handles: Vec<PlayerHandle>,
+}
+
+/// The main GGRS configuration type
+#[derive(Debug)]
+pub struct GGRSConfig;
+impl bevy_ggrs::ggrs::Config for GGRSConfig {
+    type Input = GGRSInput;
+    // bevy_ggrs doesn't really use State, so just make this a small whatever
+    type State = u8;
+    type Address = String;
 }
 
 /// Our primary data struct; what players send to one another
