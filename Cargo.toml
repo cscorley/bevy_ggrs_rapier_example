@@ -4,15 +4,6 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
-# Enable a small amount of optimization in debug mode
-[profile.dev]
-opt-level = 1
-
-# Enable high optimizations for dependencies (incl. Bevy), but not for our code
-# Would you believe me if I told you that you will get desyncs without these optimizations?
-[profile.dev.package."*"]
-opt-level = 3
-
 [dependencies]
 bevy = "0.9.1"
 bevy-inspector-egui = "0.15.0"
