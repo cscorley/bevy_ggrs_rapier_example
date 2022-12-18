@@ -85,7 +85,9 @@ pub fn update_rollback_status(
     current_session_frame: Res<CurrentSessionFrame>,
     mut rollback_status: ResMut<RollbackStatus>,
 ) {
-    rollback_status.is_rollback = rollback_status.last_frame > current_frame.0;
+    // If the last frame is greater than the current frame, we have rolled back.
+    // Same for equals, because it means our frame did not update!
+    rollback_status.is_rollback = rollback_status.last_frame >= current_frame.0;
     rollback_status.is_replay =
         rollback_status.is_rollback || current_session_frame.0 > current_frame.0;
 

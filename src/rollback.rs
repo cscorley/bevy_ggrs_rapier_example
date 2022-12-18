@@ -147,6 +147,13 @@ pub fn apply_inputs(
                 .0
                 .get_mut((game_input.last_confirmed_frame as usize) % DESYNC_MAX_FRAMES)
             {
+                assert!(
+                    frame_hash.frame != game_input.last_confirmed_frame
+                        || frame_hash.rapier_checksum == game_input.last_confirmed_hash,
+                    "Got new data for existing frame data {}",
+                    frame_hash.frame
+                );
+
                 // Only update this local data if the frame is new-to-us.
                 // We don't want to overwrite any existing validated status
                 // unless the frame is replacing what is already in the buffer.
@@ -202,16 +209,22 @@ pub fn apply_inputs(
             0.
         };
 
-        if horizontal != 0. {
-            v.linvel.x += horizontal * 10.0;
+        let new_vel_x = if horizontal != 0. {
+            v.linvel.x + horizontal * 10.0
         } else {
-            v.linvel.x = 0.;
-        }
+            0.
+        };
 
-        if vertical != 0. {
-            v.linvel.y += vertical * 10.0;
+        let new_vel_y = if vertical != 0. {
+            v.linvel.y + vertical * 10.0
         } else {
-            v.linvel.y = 0.;
+            0.
+        };
+
+        // This is annoying but we have to make sure we only trigger an update in Rapier when explicitly necessary!
+        if new_vel_x != v.linvel.x || new_vel_y != v.linvel.y {
+            v.linvel.x = new_vel_x;
+            v.linvel.y = new_vel_y;
         }
     }
 }
