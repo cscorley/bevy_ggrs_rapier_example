@@ -1,4 +1,5 @@
-This is my quest to get GGRS and Rapier to work together in the Bevy engine.
+This is my quest to get GGRS and Rapier to work together in the Bevy engine,
+using the plugins.
 
 Is it perfect? No. But is well-written? Also no.
 
@@ -7,9 +8,9 @@ going.
 
 Things I have going
 
-- Deterministic physics and rollbacks
+- Deterministic physics and rollbacks (allegedly)
 - Desync detection (1v1 only)
-- One big file, full of poorly strung together comments
+- Plenty poorly strung-together comments
 - And a whole lot of debug learning
 
 Keys
