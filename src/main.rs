@@ -217,8 +217,7 @@ fn main() {
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugin(
         RapierPhysicsPlugin::<NoUserData>::default()
-            // Scale of 8 since that's the factor size of our ball & players.
-            // This choice was made kind of arbitrarily.
+            // The physics scale really should not matter for a game of this size
             .with_physics_scale(1.)
             // This allows us to hook in the systems ourselves above in the GGRS schedule
             .with_default_system_setup(false),
@@ -238,8 +237,7 @@ fn main() {
         // Turn off query pipeline since this example does not use it
         query_pipeline_active: false,
 
-        // This is on always, we will toggle the physics system via a run condition
-        // because we need the writeback stage to always execute
+        // We will turn this on after "loading", this helps when looking at init issues
         physics_pipeline_active: false,
 
         // Do not check internal structures for transform changes
