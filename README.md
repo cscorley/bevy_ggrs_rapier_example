@@ -8,7 +8,7 @@ going.
 
 Things I have going
 
-- Deterministic physics and rollbacks (allegdly)
+- Deterministic physics and rollbacks (allegedly)
 - Desync detection (1v1 only)
 - Plenty poorly strung-together comments
 - And a whole lot of debug learning
