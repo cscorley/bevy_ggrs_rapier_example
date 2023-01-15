@@ -26,9 +26,12 @@ mod prelude {
     pub use bevy::log::*;
     pub use bevy::prelude::*;
     pub use bevy::tasks::IoTaskPool;
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
+
     pub use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
-    pub use bevy_inspector_egui::WorldInspectorPlugin;
+    pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
     pub use bevy_inspector_egui_rapier::InspectableRapierPlugin;
     pub use bevy_rapier2d::prelude::*;
     pub use bytemuck::{Pod, Zeroable};
@@ -62,6 +65,7 @@ mod prelude {
     // It has been an incredibly useful thing I don't have to think about while working
     // and learning how to implement this stuff and I guarantee it will be for you too.
     pub const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
+    //pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/bevy-ggrs-rapier-example?next=2";
     // TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
 }
 
@@ -101,9 +105,6 @@ fn main() {
         .insert_resource(LogSettings {
             level: Level::INFO,
             ..default()
-        })
-        .insert_resource(FramepaceSettings {
-            limiter: Limiter::from_framerate(FPS as f64),
         })
         .add_plugins(
             DefaultPlugins
@@ -253,8 +254,15 @@ fn main() {
             ..default()
         })
         .add_plugin(InspectableRapierPlugin)
-        .add_plugin(WorldInspectorPlugin::default())
+        .add_plugin(WorldInspectorPlugin);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        app.insert_resource(FramepaceSettings {
+            limiter: Limiter::from_framerate(FPS as f64),
+        })
         .add_plugin(FramepacePlugin);
+    }
 
     app.run();
 }
