@@ -26,9 +26,12 @@ mod prelude {
     pub use bevy::log::*;
     pub use bevy::prelude::*;
     pub use bevy::tasks::IoTaskPool;
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
+
     pub use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
-    pub use bevy_inspector_egui::WorldInspectorPlugin;
+    pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
     pub use bevy_inspector_egui_rapier::InspectableRapierPlugin;
     pub use bevy_rapier2d::prelude::*;
     pub use bytemuck::{Pod, Zeroable};
@@ -101,9 +104,6 @@ fn main() {
         .insert_resource(LogSettings {
             level: Level::INFO,
             ..default()
-        })
-        .insert_resource(FramepaceSettings {
-            limiter: Limiter::from_framerate(FPS as f64),
         })
         .add_plugins(
             DefaultPlugins
@@ -253,8 +253,15 @@ fn main() {
             ..default()
         })
         .add_plugin(InspectableRapierPlugin)
-        .add_plugin(WorldInspectorPlugin::default())
+        .add_plugin(WorldInspectorPlugin);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        app.insert_resource(FramepaceSettings {
+            limiter: Limiter::from_framerate(FPS as f64),
+        })
         .add_plugin(FramepacePlugin);
+    }
 
     app.run();
 }
