@@ -16,4 +16,7 @@ wasm-opt -Oz --output wasm/optimized.wasm wasm/bevy_ggrs_rapier_example_bg.wasm
 mv wasm/optimized.wasm wasm/bevy_ggrs_rapier_example_bg.wasm
 
 # also can use cargo install basic-http-server
-simple-http-server wasm --nocache
+# only listing 127.0.0.1 here because I'm a doofus that clicks the link the
+# program outputs, which is by default 0.0.0.0.  this address does not work for
+# webrtc in firefox, you should visit 127!
+simple-http-server wasm --nocache --ip 127.0.0.1

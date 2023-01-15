@@ -65,6 +65,7 @@ mod prelude {
     // It has been an incredibly useful thing I don't have to think about while working
     // and learning how to implement this stuff and I guarantee it will be for you too.
     pub const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
+    //pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/bevy-ggrs-rapier-example?next=2";
     // TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
 }
 
