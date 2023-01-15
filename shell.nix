@@ -10,7 +10,7 @@ let
     extensions = [ "rust-src" ];
     targets = [ "wasm32-unknown-unknown" ];
   };
-in pkgs.mkShell rec {
+in pkgs.mkShell.override { stdenv = pkgs.clangStdenv; } rec {
   name = "bevy_ggrs_rapier_example";
   nativeBuildInputs = (with pkgs; [ pkg-config ]);
   buildInputs = (with pkgs; [
@@ -27,7 +27,6 @@ in pkgs.mkShell rec {
   ]);
 
   packages = [ rusts ] ++ (with pkgs; [
-    clang
     mold
 
     # wasm
@@ -37,14 +36,13 @@ in pkgs.mkShell rec {
   ]);
 
   LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
-  PKG_CONFIG_PATH = pkgs.lib.makeBinPath nativeBuildInputs;
   RUST_BACKTRACE = 1;
 
   # Leave myself 1 core free :-)
   CARGO_BUILD_JOBS = "7";
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
   # TODO: requires nightly "-Zshare-generics=y"
-  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUST_FLAGS =
-    "-C link-arg=-fuse-ld=${pkgs.lib.makeBinPath [ pkgs.mold ]}";
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS =
+    "-C link-arg=-fuse-ld=${pkgs.lib.getExe pkgs.mold}";
 
 }
