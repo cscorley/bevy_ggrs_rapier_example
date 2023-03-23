@@ -1,3 +1,5 @@
+# Bevy GGRS Rapier example
+
 This is my quest to get GGRS and Rapier to work together in the Bevy engine,
 using the plugins.
 
@@ -19,7 +21,25 @@ Keys
 - R turn on random movement for this window
 - T turn off random movement for this window
 
-Testing
+## Building
+
+### Native
+
+From the root directory:
+
+```
+cargo run
+```
+
+### WASM
+
+From the root directory:
+
+```
+cargo run --target wasm32-unknown-unknown
+```
+
+## Testing
 
 - You can test rollbacks locally
   - On Linux, I use the included `slowmode.sh` script.
