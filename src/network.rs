@@ -1,4 +1,7 @@
-use bevy_matchbox::{prelude::SingleChannel, MatchboxSocket};
+use bevy_matchbox::{
+    prelude::{PeerState, SingleChannel},
+    MatchboxSocket,
+};
 
 use crate::prelude::*;
 
@@ -14,15 +17,28 @@ pub fn connect(mut commands: Commands) {
 
 pub fn update_matchbox_socket(
     mut commands: Commands,
-    mut socket_res: Option<ResMut<MatchboxSocket<SingleChannel>>>,
+    mut socket: ResMut<MatchboxSocket<SingleChannel>>,
+    session: Option<Res<Session<GGRSConfig>>>,
 ) {
-    if let None = socket_res {
+    if let Some(_session) = session {
+        // Already have a session, skip for now
         return;
     }
 
-    let socket = socket_res.as_mut().unwrap();
-    socket.update_peers();
-    if socket.connected_peers().count() < NUM_PLAYERS {
+    // regularly call update_peers to update the list of connected peers
+    for (peer, new_state) in socket.update_peers() {
+        // you can also handle the specific dis(connections) as they occur:
+        match new_state {
+            PeerState::Connected => info!("peer {peer:?} connected"),
+            PeerState::Disconnected => info!("peer {peer:?} disconnected"),
+        }
+    }
+
+    let peer_count = socket.connected_peers().count();
+    info!("Peer count {}", peer_count);
+
+    // Need one peer
+    if peer_count == 0 {
         return;
     }
 
