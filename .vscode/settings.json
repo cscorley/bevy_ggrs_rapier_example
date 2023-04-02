@@ -1,5 +1,4 @@
 {
   "cSpell.words": ["linvel", "angvel", "ggrs"],
-  "rust-analyzer.server.path": "rust-analyzer", // Force use the rust-analyzer available in the $PATH
-  "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix" // Loads extensions with nix depenencies
+  "rust-analyzer.server.path": "rust-analyzer" // Force use the rust-analyzer available in the $PATH
 }

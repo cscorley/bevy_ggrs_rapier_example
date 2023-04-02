@@ -9,49 +9,21 @@
   },
   "tasks": [
     {
-      "label": "all",
-      //"dependsOn": ["cargo1", "cargo2"],
-      // If you're a nix user, you can switch to running this with the nix shells!
-      "dependsOn": ["nix1", "nix2"],
+      "label": "two of them",
+      //"dependsOn": ["shell1"],
+      "dependsOn": ["shell1", "shell2"],
       "group": {
         "kind": "build",
         "isDefault": true
       }
     },
     {
-      "type": "cargo",
-      "command": "run",
-      "problemMatcher": ["$rustc"],
-      "label": "cargo1",
-      "isBackground": true,
-      "group": "build",
-      "presentation": {
-        "group": "2ofthem",
-        "clear": true
-      }
-    },
-    {
-      "type": "cargo",
-      "command": "run",
-      "problemMatcher": ["$rustc"],
-      "label": "cargo2",
-      "isBackground": true,
-      "group": "build",
-      "presentation": {
-        "group": "2ofthem",
-        "clear": true
-      }
-    },
-    {
       "type": "shell",
-      "command": "nix-shell",
-      "args": ["--command", "'cargo run'"],
-      "problemMatcher": ["$rustc"],
-      "label": "nix1",
+      "command": "cargo run",
+      "label": "shell1",
       "isBackground": true,
       "group": {
         "kind": "build"
-        //"isDefault": true
       },
       "presentation": {
         "group": "2ofthem",
@@ -60,10 +32,8 @@
     },
     {
       "type": "shell",
-      "command": "nix-shell",
-      "args": ["--command", "'cargo run'"],
-      "problemMatcher": ["$rustc"],
-      "label": "nix2",
+      "command": "cargo run",
+      "label": "shell2",
       "isBackground": true,
       "group": {
         "kind": "build"
