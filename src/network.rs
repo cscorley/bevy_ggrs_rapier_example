@@ -2,9 +2,6 @@ use bevy_matchbox::{prelude::SingleChannel, MatchboxSocket};
 
 use crate::prelude::*;
 
-#[derive(Default, Resource)]
-pub struct WebRtcSocketWrapper(pub Option<MatchboxSocket<SingleChannel>>);
-
 /// Not necessary for this demo, but useful debug output sometimes.
 #[derive(Resource)]
 pub struct NetworkStatsTimer(pub Timer);
@@ -12,17 +9,18 @@ pub struct NetworkStatsTimer(pub Timer);
 pub fn connect(mut commands: Commands) {
     // Connect immediately.
     // This starts to poll the matchmaking service for our other player to connect.
-    commands.insert_resource(WebRtcSocketWrapper(Some(MatchboxSocket::new_ggrs(
-        MATCHBOX_ADDR,
-    ))));
+    commands.insert_resource(MatchboxSocket::new_ggrs(MATCHBOX_ADDR));
 }
 
-pub fn update_matchbox_socket(mut commands: Commands, mut socket_res: ResMut<WebRtcSocketWrapper>) {
-    if let None = socket_res.0.as_mut() {
+pub fn update_matchbox_socket(
+    mut commands: Commands,
+    mut socket_res: Option<ResMut<MatchboxSocket<SingleChannel>>>,
+) {
+    if let None = socket_res {
         return;
     }
 
-    let socket = socket_res.0.as_mut().unwrap();
+    let socket = socket_res.as_mut().unwrap();
     socket.update_peers();
     if socket.connected_peers().count() < NUM_PLAYERS {
         return;
