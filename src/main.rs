@@ -33,17 +33,14 @@ mod prelude {
     pub use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
     pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
     pub use bevy_inspector_egui_rapier::InspectableRapierPlugin;
+    pub use bevy_matchbox::matchbox_socket::WebRtcSocket;
     pub use bevy_rapier2d::prelude::*;
     pub use bytemuck::{Pod, Zeroable};
     pub use ggrs::{Frame, InputStatus, PlayerHandle, PlayerType, SessionBuilder};
-    pub use matchbox_socket::WebRtcSocket;
     pub use rand::{thread_rng, Rng};
 
     pub const NUM_PLAYERS: usize = 2;
     pub const FPS: usize = 60;
-    pub const ROLLBACK_SYSTEMS: &str = "rollback_systems";
-    pub const GAME_SYSTEMS: &str = "game_systems";
-    pub const CHECKSUM_SYSTEMS: &str = "checksum_systems";
     pub const MAX_PREDICTION: usize = 5;
     pub const INPUT_DELAY: usize = 3;
 
@@ -69,6 +66,16 @@ mod prelude {
     // TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+#[system_set(base)]
+enum ExampleSystemSets {
+    Rollback,
+    Game,
+    Checksum,
+}
+
+use bevy_ggrs::GGRSSchedule;
+
 use crate::prelude::*;
 
 fn main() {
@@ -93,10 +100,9 @@ fn main() {
         .collect::<Vec<Entity>>();
 
     // Something smaller so we can put these side by side
-    let window_info = WindowDescriptor {
+    let window_info = Window {
         title: "Example".into(),
-        width: 800.0,
-        height: 600.0,
+        resolution: (800.0, 600.0).into(),
         ..default()
     };
 
@@ -109,7 +115,7 @@ fn main() {
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
-                    window: window_info,
+                    primary_window: Some(window_info),
                     ..default()
                 })
                 .build()
@@ -138,82 +144,137 @@ fn main() {
         .register_rollback_component::<Sleeping>()
         // Game stuff
         .register_rollback_resource::<EnablePhysicsAfter>()
-        .with_rollback_schedule(
-            Schedule::default()
-                // It is imperative that this executes first, always.  Yes, I know about `.after()`.
-                // I'm putting this here in case you end up adding any `Commands` to this step,
-                // which I think must flush at all costs before we enter the regular game logic
-                .with_stage(
-                    ROLLBACK_SYSTEMS,
-                    SystemStage::parallel()
-                        // Just strictly ordered so we have ordered comparable
-                        // logging.  Could be optimized if the logger info was
-                        // synthesized into it's own system or something
-                        .with_system(update_current_frame)
-                        .with_system(update_current_session_frame.after(update_current_frame))
-                        .with_system(update_confirmed_frame.after(update_current_session_frame))
-                        // The three above must actually come before we update rollback status
-                        .with_system(update_rollback_status.after(update_confirmed_frame))
-                        // These three must actually come after we update rollback status
-                        .with_system(update_validatable_frame.after(update_rollback_status))
-                        .with_system(toggle_physics.after(update_rollback_status))
-                        .with_system(rollback_rapier_context.after(toggle_physics)),
-                )
-                // Add our game logic and systems here.  If it impacts what the
-                // physics engine should consider, do it here.
-                .with_stage_after(
-                    ROLLBACK_SYSTEMS,
-                    GAME_SYSTEMS,
-                    SystemStage::parallel()
-                        .with_system(apply_inputs)
-                        // The `frame_validator` relies on the execution of `apply_inputs` and must come after.
-                        // It could happen anywhere else, I just stuck it here to be clear.
-                        // If this is causing your game to quit, you have a bug!
-                        .with_system(frame_validator.after(apply_inputs))
-                        .with_system(force_update_rollbackables),
-                )
-                // The next 3 stages are all bevy_rapier stages.  Best to leave these in order.
-                .with_stage_after(
-                    GAME_SYSTEMS,
-                    PhysicsStages::SyncBackend,
-                    SystemStage::parallel().with_system_set(
-                        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsStages::SyncBackend),
-                    ),
-                )
-                .with_stage_after(
-                    PhysicsStages::SyncBackend,
-                    PhysicsStages::StepSimulation,
-                    SystemStage::parallel().with_system_set(
-                        RapierPhysicsPlugin::<NoUserData>::get_systems(
-                            PhysicsStages::StepSimulation,
-                        ),
-                    ),
-                )
-                .with_stage_after(
-                    PhysicsStages::StepSimulation,
-                    PhysicsStages::Writeback,
-                    SystemStage::parallel().with_system_set(
-                        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsStages::Writeback),
-                    ),
-                )
-                // This must execute after writeback to store the RapierContext
-                .with_stage_after(
-                    PhysicsStages::Writeback,
-                    CHECKSUM_SYSTEMS,
-                    SystemStage::parallel().with_system(save_rapier_context),
-                ),
-        )
         .build(&mut app);
 
-    // Be sure to setup all four stages.
-    // We don't despawn in this example, but you may want to :-)
-    app.add_stage_before(
-        CoreStage::Last,
-        PhysicsStages::DetectDespawn,
-        SystemStage::parallel().with_system_set(RapierPhysicsPlugin::<NoUserData>::get_systems(
-            PhysicsStages::DetectDespawn,
-        )),
+    app.configure_sets(
+        (
+            ExampleSystemSets::Rollback,
+            ExampleSystemSets::Game,
+            PhysicsSet::SyncBackend,
+            PhysicsSet::SyncBackendFlush,
+            PhysicsSet::StepSimulation,
+            PhysicsSet::Writeback,
+            ExampleSystemSets::Checksum,
+        )
+            .chain(),
     );
+
+    app.add_systems(
+        (
+            update_current_frame,
+            update_current_session_frame,
+            update_confirmed_frame,
+            update_rollback_status,
+            update_validatable_frame,
+            toggle_physics,
+            rollback_rapier_context,
+        )
+            .chain()
+            .in_base_set(ExampleSystemSets::Rollback)
+            .in_schedule(GGRSSchedule),
+    );
+
+    app.add_systems(
+        (apply_inputs, frame_validator, force_update_rollbackables)
+            .chain()
+            .in_base_set(ExampleSystemSets::Game)
+            .in_schedule(GGRSSchedule),
+    );
+
+    app.add_systems(
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
+            .in_base_set(PhysicsSet::SyncBackend)
+            .in_schedule(GGRSSchedule),
+    );
+    app.add_systems(
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackendFlush)
+            .in_base_set(PhysicsSet::SyncBackendFlush)
+            .in_schedule(GGRSSchedule),
+    );
+    app.add_systems(
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
+            .in_base_set(PhysicsSet::StepSimulation)
+            .in_schedule(GGRSSchedule),
+    );
+    app.add_systems(
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
+            .in_base_set(PhysicsSet::Writeback)
+            .in_schedule(GGRSSchedule),
+    );
+
+    app.add_system(
+        save_rapier_context
+            .in_base_set(ExampleSystemSets::Checksum)
+            .in_schedule(GGRSSchedule),
+    );
+
+    /*
+           .with_rollback_schedule(
+               Schedule::default()
+                   // It is imperative that this executes first, always.  Yes, I know about `.after()`.
+                   // I'm putting this here in case you end up adding any `Commands` to this step,
+                   // which I think must flush at all costs before we enter the regular game logic
+                   .with_stage(
+                       ROLLBACK_SYSTEMS,
+                       SystemStage::parallel()
+                           // Just strictly ordered so we have ordered comparable
+                           // logging.  Could be optimized if the logger info was
+                           // synthesized into it's own system or something
+                           .with_system(update_current_frame)
+                           .with_system(update_current_session_frame.after(update_current_frame))
+                           .with_system(update_confirmed_frame.after(update_current_session_frame))
+                           // the three above must actually come before we update rollback status
+                           .with_system(update_rollback_status.after(update_confirmed_frame))
+                           // these three must actually come after we update rollback status
+                           .with_system(update_validatable_frame.after(update_rollback_status))
+                           .with_system(toggle_physics.after(update_rollback_status))
+                           .with_system(rollback_rapier_context.after(toggle_physics)),
+                   )
+                   // Add our game logic and systems here.  If it impacts what the
+                   // physics engine should consider, do it here.
+                   .with_stage_after(
+                       ROLLBACK_SYSTEMS,
+                       GAME_SYSTEMS,
+                       SystemStage::parallel()
+                           .with_system(apply_inputs)
+                           // The `frame_validator` relies on the execution of `apply_inputs` and must come after.
+                           // It could happen anywhere else, I just stuck it here to be clear.
+                           // If this is causing your game to quit, you have a bug!
+                           .with_system(frame_validator.after(apply_inputs))
+                           .with_system(force_update_rollbackables),
+                   )
+                   // The next 3 stages are all bevy_rapier stages.  Best to leave these in order.
+                   .with_stage_after(
+                       GAME_SYSTEMS,
+                       PhysicsStages::SyncBackend,
+                       SystemStage::parallel().with_system_set(
+                           RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsStages::SyncBackend),
+                       ),
+                   )
+                   .with_stage_after(
+                       PhysicsStages::SyncBackend,
+                       PhysicsStages::StepSimulation,
+                       SystemStage::parallel().with_system_set(
+                           RapierPhysicsPlugin::<NoUserData>::get_systems(
+                               PhysicsStages::StepSimulation,
+                           ),
+                       ),
+                   )
+                   .with_stage_after(
+                       PhysicsStages::StepSimulation,
+                       PhysicsStages::Writeback,
+                       SystemStage::parallel().with_system_set(
+                           RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsStages::Writeback),
+                       ),
+                   )
+                   // This must execute after writeback to store the RapierContext
+                   .with_stage_after(
+                       PhysicsStages::Writeback,
+                       CHECKSUM_SYSTEMS,
+                       SystemStage::parallel().with_system(save_rapier_context),
+                   ),
+           )
+    */
 
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugin(
@@ -252,9 +313,9 @@ fn main() {
         .add_plugin(RapierDebugRenderPlugin {
             enabled: true,
             ..default()
-        })
-        .add_plugin(InspectableRapierPlugin)
-        .add_plugin(WorldInspectorPlugin);
+        });
+    //.add_plugin(InspectableRapierPlugin)
+    //.add_plugin(WorldInspectorPlugin);
 
     #[cfg(not(target_arch = "wasm32"))]
     {
