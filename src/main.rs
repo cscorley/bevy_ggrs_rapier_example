@@ -61,7 +61,8 @@ mod prelude {
     // They host this match making service for us to use FOR FREE.
     // It has been an incredibly useful thing I don't have to think about while working
     // and learning how to implement this stuff and I guarantee it will be for you too.
-    pub const MATCHBOX_ADDR: &str = "wss://match-0-6.helsing.studio/bevy-ggrs-rapier-example?next=2";
+    pub const MATCHBOX_ADDR: &str =
+        "wss://match-0-6.helsing.studio/bevy-ggrs-rapier-example?next=2";
     //pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/bevy-ggrs-rapier-example?next=2";
     // TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
 }
@@ -146,67 +147,55 @@ fn main() {
         .register_rollback_resource::<EnablePhysicsAfter>()
         .build(&mut app);
 
-    app.configure_sets(
-        (
-            ExampleSystemSets::Rollback,
-            ExampleSystemSets::Game,
-            PhysicsSet::SyncBackend,
-            PhysicsSet::SyncBackendFlush,
-            PhysicsSet::StepSimulation,
-            PhysicsSet::Writeback,
-            ExampleSystemSets::Checksum,
+    app.get_schedule_mut(GGRSSchedule)
+        .unwrap()
+        .configure_sets(
+            (
+                ExampleSystemSets::Rollback,
+                ExampleSystemSets::Game,
+                PhysicsSet::SyncBackend,
+                PhysicsSet::SyncBackendFlush,
+                PhysicsSet::StepSimulation,
+                PhysicsSet::Writeback,
+                ExampleSystemSets::Checksum,
+            )
+                .chain(),
         )
-            .chain(),
-    );
-
-    app.add_systems(
-        (
-            update_current_frame,
-            update_current_session_frame,
-            update_confirmed_frame,
-            update_rollback_status,
-            update_validatable_frame,
-            toggle_physics,
-            rollback_rapier_context,
+        .add_systems(
+            (
+                update_current_frame,
+                update_current_session_frame,
+                update_confirmed_frame,
+                update_rollback_status,
+                update_validatable_frame,
+                toggle_physics,
+                rollback_rapier_context,
+            )
+                .chain()
+                .in_base_set(ExampleSystemSets::Rollback),
         )
-            .chain()
-            .in_base_set(ExampleSystemSets::Rollback)
-            .in_schedule(GGRSSchedule),
-    );
-
-    app.add_systems(
-        (apply_inputs, frame_validator, force_update_rollbackables)
-            .chain()
-            .in_base_set(ExampleSystemSets::Game)
-            .in_schedule(GGRSSchedule),
-    );
-
-    app.add_systems(
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
-            .in_base_set(PhysicsSet::SyncBackend)
-            .in_schedule(GGRSSchedule),
-    );
-    app.add_systems(
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackendFlush)
-            .in_base_set(PhysicsSet::SyncBackendFlush)
-            .in_schedule(GGRSSchedule),
-    );
-    app.add_systems(
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
-            .in_base_set(PhysicsSet::StepSimulation)
-            .in_schedule(GGRSSchedule),
-    );
-    app.add_systems(
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
-            .in_base_set(PhysicsSet::Writeback)
-            .in_schedule(GGRSSchedule),
-    );
-
-    app.add_system(
-        save_rapier_context
-            .in_base_set(ExampleSystemSets::Checksum)
-            .in_schedule(GGRSSchedule),
-    );
+        .add_systems(
+            (apply_inputs, frame_validator, force_update_rollbackables)
+                .chain()
+                .in_base_set(ExampleSystemSets::Game),
+        )
+        .add_systems(
+            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
+                .in_base_set(PhysicsSet::SyncBackend),
+        )
+        .add_systems(
+            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackendFlush)
+                .in_base_set(PhysicsSet::SyncBackendFlush),
+        )
+        .add_systems(
+            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
+                .in_base_set(PhysicsSet::StepSimulation),
+        )
+        .add_systems(
+            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
+                .in_base_set(PhysicsSet::Writeback),
+        )
+        .add_system(save_rapier_context.in_base_set(ExampleSystemSets::Checksum));
 
     /*
            .with_rollback_schedule(
