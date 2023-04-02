@@ -17,12 +17,12 @@ pub fn connect(mut commands: Commands) {
     ))));
 }
 
-pub fn update_matchbox_socket(commands: Commands, mut socket_res: ResMut<WebRtcSocketWrapper>) {
+pub fn update_matchbox_socket(mut commands: Commands, mut socket_res: ResMut<WebRtcSocketWrapper>) {
     if let None = socket_res.0.as_mut() {
         return;
     }
 
-    let Some(socket) = socket_res.0.as_mut();
+    let socket = socket_res.0.as_mut().unwrap();
     socket.update_peers();
     if socket.connected_peers().count() < NUM_PLAYERS {
         return;
