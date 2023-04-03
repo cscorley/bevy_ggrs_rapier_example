@@ -20,8 +20,10 @@ pub fn update_matchbox_socket(
     mut socket: ResMut<MatchboxSocket<SingleChannel>>,
     session: Option<Res<Session<GGRSConfig>>>,
 ) {
-    if let Some(_session) = session {
-        // Already have a session, skip for now
+    if session.is_some() {
+        // Already have a session, skip for now.
+        // Check out the bevy_matchbox example which lays out a few ideas on how to better
+        // handle this resource w.r.t. an AppState: https://github.com/johanhelsing/matchbox/tree/main/examples/bevy_ggrs
         return;
     }
 
@@ -34,11 +36,8 @@ pub fn update_matchbox_socket(
         }
     }
 
-    let peer_count = socket.connected_peers().count();
-    info!("Peer count {}", peer_count);
-
     // Need one peer
-    if peer_count == 0 {
+    if socket.connected_peers().count() == 0 {
         return;
     }
 

@@ -55,14 +55,22 @@ mod prelude {
     pub const DESYNC_MAX_FRAMES: usize = 30;
 
     // TODO: Hey you!!! You, the one reading this!  Yes, you.
+
     // Buy gschup a coffee next time you get the chance.
     // https://ko-fi.com/gschup
     // They host this match making service for us to use FOR FREE.
     // It has been an incredibly useful thing I don't have to think about while working
     // and learning how to implement this stuff and I guarantee it will be for you too.
+    // pub const MATCHBOX_ADDR: &str = "wss://match.gschup.dev/bevy-ggrs-rapier-example?next=2";
+    // Unfortunately, this matchbox is too out of date to work with the latest plugin.
+
+    // So, use Johan's compatible matchbox.
+    // Check out their work on "Cargo Space", especially the blog posts, which are incredibly enlightening!
+    // https://johanhelsing.studio/cargospace
     pub const MATCHBOX_ADDR: &str =
         "wss://match-0-6.helsing.studio/bevy-ggrs-rapier-example?next=2";
-    //pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/bevy-ggrs-rapier-example?next=2";
+    // Care to run your own matchbox?  Great!
+    // pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/bevy-ggrs-rapier-example?next=2";
     // TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
 }
 
