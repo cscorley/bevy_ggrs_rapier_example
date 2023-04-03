@@ -36,10 +36,9 @@ web = ["bevy_ggrs/wasm-bindgen"]
 [dependencies]
 bevy = "0.10.1"
 bevy-inspector-egui = "0.18.3"
-bevy-inspector-egui-rapier = { version = "0.9.0", features = ["rapier2d"] }
 bevy_ggrs = "0.12.0"
-bevy_rapier2d = { version = "0.21.0", features = [
-    #bevy_rapier2d = { path = "../bevy_rapier/bevy_rapier2d", features = [
+#bevy_rapier2d = { version = "0.21.0", features = [
+bevy_rapier2d = { path = "../bevy_rapier/bevy_rapier2d", features = [
     # This branch must be used until dimforge/bevy_rapier PRs #233 is merged
     #bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "more-deterministic-context", features = [
     "enhanced-determinism",

@@ -32,7 +32,6 @@ mod prelude {
 
     pub use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
     pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
-    pub use bevy_inspector_egui_rapier::InspectableRapierPlugin;
     pub use bevy_matchbox::matchbox_socket::WebRtcSocket;
     pub use bevy_rapier2d::prelude::*;
     pub use bytemuck::{Pod, Zeroable};
@@ -151,12 +150,21 @@ fn main() {
         .unwrap()
         .configure_sets(
             (
+                // It is imperative that this executes first, always.
+                // I'm putting this here in case you end up adding any `Commands` to this step,
+                // which I think must flush at all costs before we enter the regular game logic
                 ExampleSystemSets::Rollback,
+                // Add our game logic and systems here.  If it impacts what the
+                // physics engine should consider, do it here.
                 ExampleSystemSets::Game,
+                // The next 4 stages are all bevy_rapier stages.  Best to leave these in order.
+                // This is setup to execute exactly how the plugin would execute if we were to use
+                // with_default_system_setup(true) instead (the plugin is configured next)
                 PhysicsSet::SyncBackend,
                 PhysicsSet::SyncBackendFlush,
                 PhysicsSet::StepSimulation,
                 PhysicsSet::Writeback,
+                // This must execute after writeback to store the RapierContext
                 ExampleSystemSets::Checksum,
             )
                 .chain(),
@@ -166,16 +174,26 @@ fn main() {
                 update_current_frame,
                 update_current_session_frame,
                 update_confirmed_frame,
+                // the three above must actually come before we update rollback status
                 update_rollback_status,
+                // these three must actually come after we update rollback status
                 update_validatable_frame,
                 toggle_physics,
                 rollback_rapier_context,
+                // Make sure to flush everything before we apply our game logic.
+                apply_system_buffers,
             )
                 .chain()
                 .in_base_set(ExampleSystemSets::Rollback),
         )
         .add_systems(
-            (apply_inputs, frame_validator, force_update_rollbackables)
+            (
+                apply_inputs,
+                frame_validator,
+                force_update_rollbackables,
+                // Make sure to flush everything before Rapier syncs
+                apply_system_buffers,
+            )
                 .chain()
                 .in_base_set(ExampleSystemSets::Game),
         )
@@ -195,75 +213,11 @@ fn main() {
             RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
                 .in_base_set(PhysicsSet::Writeback),
         )
-        .add_system(save_rapier_context.in_base_set(ExampleSystemSets::Checksum));
-
-    /*
-           .with_rollback_schedule(
-               Schedule::default()
-                   // It is imperative that this executes first, always.  Yes, I know about `.after()`.
-                   // I'm putting this here in case you end up adding any `Commands` to this step,
-                   // which I think must flush at all costs before we enter the regular game logic
-                   .with_stage(
-                       ROLLBACK_SYSTEMS,
-                       SystemStage::parallel()
-                           // Just strictly ordered so we have ordered comparable
-                           // logging.  Could be optimized if the logger info was
-                           // synthesized into it's own system or something
-                           .with_system(update_current_frame)
-                           .with_system(update_current_session_frame.after(update_current_frame))
-                           .with_system(update_confirmed_frame.after(update_current_session_frame))
-                           // the three above must actually come before we update rollback status
-                           .with_system(update_rollback_status.after(update_confirmed_frame))
-                           // these three must actually come after we update rollback status
-                           .with_system(update_validatable_frame.after(update_rollback_status))
-                           .with_system(toggle_physics.after(update_rollback_status))
-                           .with_system(rollback_rapier_context.after(toggle_physics)),
-                   )
-                   // Add our game logic and systems here.  If it impacts what the
-                   // physics engine should consider, do it here.
-                   .with_stage_after(
-                       ROLLBACK_SYSTEMS,
-                       GAME_SYSTEMS,
-                       SystemStage::parallel()
-                           .with_system(apply_inputs)
-                           // The `frame_validator` relies on the execution of `apply_inputs` and must come after.
-                           // It could happen anywhere else, I just stuck it here to be clear.
-                           // If this is causing your game to quit, you have a bug!
-                           .with_system(frame_validator.after(apply_inputs))
-                           .with_system(force_update_rollbackables),
-                   )
-                   // The next 3 stages are all bevy_rapier stages.  Best to leave these in order.
-                   .with_stage_after(
-                       GAME_SYSTEMS,
-                       PhysicsStages::SyncBackend,
-                       SystemStage::parallel().with_system_set(
-                           RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsStages::SyncBackend),
-                       ),
-                   )
-                   .with_stage_after(
-                       PhysicsStages::SyncBackend,
-                       PhysicsStages::StepSimulation,
-                       SystemStage::parallel().with_system_set(
-                           RapierPhysicsPlugin::<NoUserData>::get_systems(
-                               PhysicsStages::StepSimulation,
-                           ),
-                       ),
-                   )
-                   .with_stage_after(
-                       PhysicsStages::StepSimulation,
-                       PhysicsStages::Writeback,
-                       SystemStage::parallel().with_system_set(
-                           RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsStages::Writeback),
-                       ),
-                   )
-                   // This must execute after writeback to store the RapierContext
-                   .with_stage_after(
-                       PhysicsStages::Writeback,
-                       CHECKSUM_SYSTEMS,
-                       SystemStage::parallel().with_system(save_rapier_context),
-                   ),
-           )
-    */
+        .add_systems(
+            (save_rapier_context, apply_system_buffers) // Flushing again
+                .chain()
+                .in_base_set(ExampleSystemSets::Checksum),
+        );
 
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugin(
@@ -297,17 +251,21 @@ fn main() {
         ..default()
     });
 
-    app
-        // We don't really draw anything ourselves, just show us the raw physics colliders
-        .add_plugin(RapierDebugRenderPlugin {
-            enabled: true,
-            ..default()
-        });
-    //.add_plugin(InspectableRapierPlugin)
-    //.add_plugin(WorldInspectorPlugin);
+    // We don't really draw anything ourselves, just show us the raw physics colliders
+    app.add_plugin(RapierDebugRenderPlugin {
+        enabled: true,
+        ..default()
+    })
+    .add_plugin(WorldInspectorPlugin::new());
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        // I have found that since GGRS is limiting the movement FPS anyway,
+        // there isn't much of a point in rendering more frames than necessary.
+        // One thing I've yet to prove out is if this is actually detrimental or
+        // not to resimulation, since we're basically taking up time that GGRS
+        // would use already to pace itself.
+        // You may find this useless, or bad.  Submit a PR if it is!
         app.insert_resource(FramepaceSettings {
             limiter: Limiter::from_framerate(FPS as f64),
         })
