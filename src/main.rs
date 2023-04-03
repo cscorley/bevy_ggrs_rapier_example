@@ -79,10 +79,8 @@ mod prelude {
 enum ExampleSystemSets {
     Rollback,
     Game,
-    Checksum,
+    SaveAndChecksum,
 }
-
-use bevy_ggrs::GGRSSchedule;
 
 use crate::prelude::*;
 
@@ -154,8 +152,10 @@ fn main() {
         .register_rollback_resource::<EnablePhysicsAfter>()
         .build(&mut app);
 
-    app.get_schedule_mut(GGRSSchedule)
-        .unwrap()
+    // We need to a bunch of systems into the GGRSSchedule.
+    // So, grab it and lets configure it with our systems, and the one from Rapier.
+    app.get_schedule_mut(bevy_ggrs::GGRSSchedule)
+        .unwrap() // We just configured the plugin -- this is probably fine
         .configure_sets(
             (
                 // It is imperative that this executes first, always.
@@ -173,7 +173,7 @@ fn main() {
                 PhysicsSet::StepSimulation,
                 PhysicsSet::Writeback,
                 // This must execute after writeback to store the RapierContext
-                ExampleSystemSets::Checksum,
+                ExampleSystemSets::SaveAndChecksum,
             )
                 .chain(),
         )
@@ -191,6 +191,10 @@ fn main() {
                 // Make sure to flush everything before we apply our game logic.
                 apply_system_buffers,
             )
+                // There is a bit more specific ordering you can do with these
+                // systems, but since GGRS configures it's schedule to require
+                // absolute unambiguous systems, I'm just going to take the lazy
+                // way out and `chain` them in order.
                 .chain()
                 .in_base_set(ExampleSystemSets::Rollback),
         )
@@ -224,7 +228,7 @@ fn main() {
         .add_systems(
             (save_rapier_context, apply_system_buffers) // Flushing again
                 .chain()
-                .in_base_set(ExampleSystemSets::Checksum),
+                .in_base_set(ExampleSystemSets::SaveAndChecksum),
         );
 
     // Configure plugin without system setup, otherwise your simulation will run twice
