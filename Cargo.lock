@@ -1136,6 +1136,7 @@ checksum = "0c4b88451d4c5a353bff67dbaa937b6886efd26ae114769c17f2b35099c7a4de"
 [[package]]
 name = "bevy_rapier2d"
 version = "0.21.0"
+source = "git+https://github.com/cscorley/bevy_rapier?branch=more-deterministic-context-0.10#f74b89ee7fb5ff1163826e9acaa54ea0ae13b6cd"
 dependencies = [
  "bevy",
  "bitflags",
