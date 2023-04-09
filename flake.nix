@@ -3,15 +3,17 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/22.11";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/master";
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = { nixpkgs, nixpkgs-unstable, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
+        pkgsUnstable = import nixpkgs-unstable { inherit system overlays; };
 
         rusts = pkgs.rust-bin.stable.latest.complete.override {
           extensions = [ "rust-src" ];
@@ -38,8 +40,8 @@
             packages = [
               mold
               rusts
-              wasm-bindgen-cli
-              binaryen
+              pkgsUnstable.wasm-bindgen-cli
+              pkgsUnstable.binaryen
               simple-http-server
               nix-ld
             ];
