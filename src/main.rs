@@ -198,6 +198,9 @@ fn main() {
         .add_systems(
             (
                 apply_inputs,
+                // The `frame_validator` relies on the execution of `apply_inputs` and must come after.
+                // It could happen anywhere else, I just stuck it here to be clear.
+                // If this is causing your game to quit, you have a bug!
                 frame_validator,
                 force_update_rollbackables,
                 // Make sure to flush everything before Rapier syncs
@@ -223,7 +226,10 @@ fn main() {
                 .in_base_set(PhysicsSet::Writeback),
         )
         .add_systems(
-            (save_rapier_context, apply_system_buffers) // Flushing again
+            (
+                save_rapier_context, // This must execute after writeback to store the RapierContext
+                apply_system_buffers, // Flushing again
+            )
                 .chain()
                 .in_base_set(ExampleSystemSets::SaveAndChecksum),
         );
