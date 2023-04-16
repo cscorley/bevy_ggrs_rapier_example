@@ -26,10 +26,7 @@ mod prelude {
     pub use bevy::log::*;
     pub use bevy::prelude::*;
     pub use bevy::tasks::IoTaskPool;
-
-    #[cfg(not(target_arch = "wasm32"))]
     pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
-
     pub use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
     pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
     pub use bevy_matchbox::matchbox_socket::WebRtcSocket;
@@ -270,19 +267,16 @@ fn main() {
     })
     .add_plugin(WorldInspectorPlugin::new());
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        // I have found that since GGRS is limiting the movement FPS anyway,
-        // there isn't much of a point in rendering more frames than necessary.
-        // One thing I've yet to prove out is if this is actually detrimental or
-        // not to resimulation, since we're basically taking up time that GGRS
-        // would use already to pace itself.
-        // You may find this useless, or bad.  Submit a PR if it is!
-        app.insert_resource(FramepaceSettings {
-            limiter: Limiter::from_framerate(FPS as f64),
-        })
-        .add_plugin(FramepacePlugin);
-    }
+    // I have found that since GGRS is limiting the movement FPS anyway,
+    // there isn't much of a point in rendering more frames than necessary.
+    // One thing I've yet to prove out is if this is actually detrimental or
+    // not to resimulation, since we're basically taking up time that GGRS
+    // would use already to pace itself.
+    // You may find this useless, or bad.  Submit a PR if it is!
+    app.insert_resource(FramepaceSettings {
+        limiter: Limiter::from_framerate(FPS as f64),
+    })
+    .add_plugin(FramepacePlugin);
 
     app.run();
 }
