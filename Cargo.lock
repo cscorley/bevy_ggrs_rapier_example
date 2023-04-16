@@ -932,6 +932,7 @@ dependencies = [
  "bytemuck",
  "console_error_panic_hook",
  "ggrs",
+ "glam",
  "log",
  "rand",
  "tracing-log",
@@ -2771,10 +2772,10 @@ checksum = "dec7af912d60cdbd3677c1af9352ebae6fb8394d165568a2234df0fa00f87793"
 [[package]]
 name = "glam"
 version = "0.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e4afd9ad95555081e109fe1d21f2a30c691b5f0919c67dfa690a2e1eb6bd51c"
+source = "git+https://github.com/bitshifter/glam-rs?rev=a881b741e521d199c8ccb79ba347285527eff41c#a881b741e521d199c8ccb79ba347285527eff41c"
 dependencies = [
  "bytemuck",
+ "libm",
  "serde",
 ]
 

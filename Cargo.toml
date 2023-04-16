@@ -54,6 +54,12 @@ tracing-subscriber = { version = "0.3.16", features = [
     "env-filter",
 ] }
 tracing-log = "0.1.3"
+# Overriding glam for https://github.com/cscorley/bevy_ggrs_rapier_example/issues/22
+# Once a new glam is released, we can update this to that version when bevy also updates
+# We have this here so we can explicitly declare the libm feature
+glam = { git = "https://github.com/bitshifter/glam-rs", rev = "a881b741e521d199c8ccb79ba347285527eff41c", features = [
+    "libm",
+] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ggrs = { version = "0.9.3", features = ["sync-send"] }
@@ -66,3 +72,4 @@ tracing-wasm = "0.2.1"
 
 [patch.crates-io]
 # ggrs = { git = "https://github.com/gschup/ggrs" }
+glam = { git = "https://github.com/bitshifter/glam-rs", rev = "a881b741e521d199c8ccb79ba347285527eff41c" }
