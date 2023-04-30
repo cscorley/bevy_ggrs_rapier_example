@@ -1,3 +1,4 @@
+use bevy_matchbox::prelude::PeerId;
 use ggrs::Config;
 
 use crate::prelude::*;
@@ -27,7 +28,7 @@ impl Config for GGRSConfig {
     type Input = GGRSInput;
     // bevy_ggrs doesn't really use State, so just make this a small whatever
     type State = u8;
-    type Address = String;
+    type Address = PeerId;
 }
 
 /// Our primary data struct; what players send to one another

@@ -21,7 +21,11 @@ Keys
 - R turn on random movement for this window
 - T turn off random movement for this window
 
-## Building
+## Running
+
+This demo has no menus other than the debugging inspector. This demo assumes
+that you will run it twice, which establishes a connection between the two and
+runs the simulation.
 
 ### Native
 
@@ -31,13 +35,24 @@ From the root directory:
 cargo run
 ```
 
+In VS Code, you can also run
+[two of them](https://www.youtube.com/watch?v=btHpHjabRcc) with
+(Ctrl|Cmd)+Shift+B, which will run the demo twice.
+
 ### WASM
 
-From the root directory:
+From the root directory (requires wasm-server-runner):
 
 ```
-cargo run --target wasm32-unknown-unknown
+cargo run --target wasm32-unknown-unknown --features web
 ```
+
+Or, use the `wasm.sh` script which runs several commands. This will produce an
+optimized WASM build and launch a test HTTP server (requires wasm-bindgen-cli,
+binaryen, and simple-http-server).
+
+You will need to launch the demo in two windows. It is recommended to not use
+tabs to avoid and auto-sleep behavior from your browser.
 
 ## Testing
 
@@ -46,3 +61,8 @@ cargo run --target wasm32-unknown-unknown
     - Run with root/sudo.
     - Run again to restore.
   - On Windows, I use clumsy https://jagt.github.io/clumsy/
+
+# Contributing
+
+Please do! Pull requests are always welcome; and don't be afraid to checkout the
+[Bevy discord](https://discord.gg/bevy) for more help.

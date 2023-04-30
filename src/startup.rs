@@ -37,6 +37,12 @@ pub fn reset_rapier(
     collider_handles: Query<Entity, With<RapierColliderHandle>>,
     rb_handles: Query<Entity, With<RapierRigidBodyHandle>>,
 ) {
+    // You might be wondering:  why is this here?  What purpose does it serve?
+    // In just resets everything on startup!
+    // Yes.  But this bad boy right here is a good system you can use to reset
+    // Rapier whenever you please in your game (e.g., after a game ends or
+    // between rounds).  It isn't quite a nuclear option, but a rollbackable one!
+
     // Force rapier to reload everything
     for e in collider_handles.iter() {
         commands.entity(e).remove::<RapierColliderHandle>();
@@ -60,8 +66,13 @@ pub fn reset_rapier(
     rapier.query_pipeline = context.query_pipeline;
 
     // Add a bit more CCD
+    // This is objectively just something that could be setup once, but we did
+    // just wholesale overwrite this anyway.  I think you can just not override
+    // integration_parameters above, but where's the fun in that?
     rapier.integration_parameters.max_ccd_substeps = 5;
 
+    // Serialize our "blank" slate for frame 0.
+    // This is actually important because it is possible to rollback to this!
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
         let rapier_checksum = fletcher16(&context_bytes);
         log::info!("Context hash at init: {}", rapier_checksum);
