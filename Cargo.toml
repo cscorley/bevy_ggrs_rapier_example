@@ -58,8 +58,12 @@ bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "mor
 ] }
 
 # Overriding glam for https://github.com/cscorley/bevy_ggrs_rapier_example/issues/22
-# We have this here so we can explicitly declare the libm feature.
-# Once a new glam is released, we can update this to that version when bevy also updates.
+# We have this here so we can explicitly declare the libm feature to ensure it's
+# enabled.  These changes are released under glam 0.24, and we can update this
+# to that version when bevy also updates to 0.24.  We will still want to have
+# this direct dependency, even though we don't use glam ourselves, because we
+# want to force on the libm feature.  Unfortunately, we cannot enable the
+# feature via bevy yet, which would be optimal.
 glam = { git = "https://github.com/bitshifter/glam-rs", rev = "a881b741e521d199c8ccb79ba347285527eff41c", features = [
     "libm",
 ] }
@@ -70,5 +74,7 @@ console_error_panic_hook = "0.1.6"
 tracing-wasm = "0.2.1"
 
 [patch.crates-io]
-# Patch glam to our git version above.  This will force the bevy instances to use it.
+# Patch glam to our git version above.  This will force the bevy instances to
+# use our version with libm enabled.  Keep in mind, this will only work while
+# bevy references glam 0.23, which is the same version this commit exposes.
 glam = { git = "https://github.com/bitshifter/glam-rs", rev = "a881b741e521d199c8ccb79ba347285527eff41c" }
