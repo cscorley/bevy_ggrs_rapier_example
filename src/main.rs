@@ -78,6 +78,8 @@ enum ExampleSystemSets {
     SaveAndChecksum,
 }
 
+use bevy::ecs::schedule::ScheduleBuildSettings;
+
 use crate::prelude::*;
 
 fn main() {
@@ -152,6 +154,8 @@ fn main() {
     // So, grab it and lets configure it with our systems, and the one from Rapier.
     app.get_schedule_mut(bevy_ggrs::GgrsSchedule)
         .unwrap() // We just configured the plugin -- this is probably fine
+        // remove ambiguity detection, which doesn't work with Rapier https://github.com/dimforge/bevy_rapier/issues/356#issuecomment-1587045134
+        .set_build_settings(ScheduleBuildSettings::default())
         .configure_sets(
             (
                 // It is imperative that this executes first, always.
