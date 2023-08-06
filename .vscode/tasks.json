@@ -10,8 +10,8 @@
   "tasks": [
     {
       "label": "two of them",
-      //"dependsOn": ["shell1"],
-      "dependsOn": ["shell1", "shell2"],
+      "dependsOn": ["shell1"],
+      //"dependsOn": ["shell1", "shell2"],
       "group": {
         "kind": "build",
         "isDefault": true
