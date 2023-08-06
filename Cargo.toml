@@ -73,3 +73,7 @@ bevy_matchbox = { git = "https://github.com/johanhelsing/matchbox", rev = "9d25e
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
 tracing-wasm = "0.2.1"
+
+# Force matchbox to use the crates version instead of git
+[patch.'https://github.com/gschup/ggrs']
+ggrs = { version = "0.9.4" }
