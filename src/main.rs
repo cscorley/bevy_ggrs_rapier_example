@@ -27,7 +27,7 @@ mod prelude {
     pub use bevy::prelude::*;
     pub use bevy::tasks::IoTaskPool;
     pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
-    pub use bevy_ggrs::{GGRSPlugin, PlayerInputs, Rollback, RollbackIdProvider, Session};
+    pub use bevy_ggrs::{GgrsPlugin, PlayerInputs, Rollback, Session, AddRollbackCommandExtension};
     pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
     pub use bevy_matchbox::matchbox_socket::WebRtcSocket;
     pub use bevy_rapier2d::prelude::*;
@@ -72,7 +72,6 @@ mod prelude {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-#[system_set(base)]
 enum ExampleSystemSets {
     Rollback,
     Game,
@@ -126,16 +125,16 @@ fn main() {
         )
         // Add our own log plugin to help with comparing desync output
         .add_plugins(log_plugin::LogPlugin)
-        .add_startup_system(startup)
-        .add_startup_system(reset_rapier)
-        .add_startup_system(respawn_all)
-        .add_startup_system(connect)
-        .add_system(toggle_random_input)
-        .add_system(bevy::window::close_on_esc)
-        .add_system(update_matchbox_socket)
-        .add_system(handle_p2p_events);
+        .add_systems(Startup, startup)
+        .add_systems(Startup, reset_rapier)
+        .add_systems(Startup, respawn_all)
+        .add_systems(Startup, connect)
+        .add_systems(Update, toggle_random_input)
+        .add_systems(Update, bevy::window::close_on_esc)
+        .add_systems(Update, update_matchbox_socket)
+        .add_systems(Update, handle_p2p_events);
 
-    GGRSPlugin::<GGRSConfig>::new()
+    GgrsPlugin::<GGRSConfig>::new()
         .with_update_frequency(FPS)
         .with_input_system(input)
         .register_rollback_resource::<PhysicsRollbackState>()
@@ -151,7 +150,7 @@ fn main() {
 
     // We need to a bunch of systems into the GGRSSchedule.
     // So, grab it and lets configure it with our systems, and the one from Rapier.
-    app.get_schedule_mut(bevy_ggrs::GGRSSchedule)
+    app.get_schedule_mut(bevy_ggrs::GgrsSchedule)
         .unwrap() // We just configured the plugin -- this is probably fine
         .configure_sets(
             (
@@ -166,7 +165,6 @@ fn main() {
                 // This is setup to execute exactly how the plugin would execute if we were to use
                 // with_default_system_setup(true) instead (the plugin is configured next)
                 PhysicsSet::SyncBackend,
-                PhysicsSet::SyncBackendFlush,
                 PhysicsSet::StepSimulation,
                 PhysicsSet::Writeback,
                 // This must execute after writeback to store the RapierContext
@@ -193,7 +191,7 @@ fn main() {
                 // absolute unambiguous systems, I'm just going to take the lazy
                 // way out and `chain` them in order.
                 .chain()
-                .in_base_set(ExampleSystemSets::Rollback),
+                .in_set(ExampleSystemSets::Rollback),
         )
         .add_systems(
             (
@@ -207,23 +205,19 @@ fn main() {
                 apply_deferred,
             )
                 .chain()
-                .in_base_set(ExampleSystemSets::Game),
+                .in_set(ExampleSystemSets::Game),
         )
         .add_systems(
             RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
-                .in_base_set(PhysicsSet::SyncBackend),
-        )
-        .add_systems(
-            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackendFlush)
-                .in_base_set(PhysicsSet::SyncBackendFlush),
+                .in_set(PhysicsSet::SyncBackend),
         )
         .add_systems(
             RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
-                .in_base_set(PhysicsSet::StepSimulation),
+                .in_set(PhysicsSet::StepSimulation),
         )
         .add_systems(
             RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
-                .in_base_set(PhysicsSet::Writeback),
+                .in_set(PhysicsSet::Writeback),
         )
         .add_systems(
             (
@@ -231,7 +225,7 @@ fn main() {
                 apply_deferred,      // Flushing again
             )
                 .chain()
-                .in_base_set(ExampleSystemSets::SaveAndChecksum),
+                .in_set(ExampleSystemSets::SaveAndChecksum),
         );
 
     // Configure plugin without system setup, otherwise your simulation will run twice
