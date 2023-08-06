@@ -186,7 +186,7 @@ fn main() {
                 toggle_physics,
                 rollback_rapier_context,
                 // Make sure to flush everything before we apply our game logic.
-                apply_system_buffers,
+                apply_deferred,
             )
                 // There is a bit more specific ordering you can do with these
                 // systems, but since GGRS configures it's schedule to require
@@ -204,7 +204,7 @@ fn main() {
                 frame_validator,
                 force_update_rollbackables,
                 // Make sure to flush everything before Rapier syncs
-                apply_system_buffers,
+                apply_deferred,
             )
                 .chain()
                 .in_base_set(ExampleSystemSets::Game),
@@ -228,7 +228,7 @@ fn main() {
         .add_systems(
             (
                 save_rapier_context, // This must execute after writeback to store the RapierContext
-                apply_system_buffers, // Flushing again
+                apply_deferred,      // Flushing again
             )
                 .chain()
                 .in_base_set(ExampleSystemSets::SaveAndChecksum),
