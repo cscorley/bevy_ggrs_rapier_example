@@ -125,7 +125,7 @@ fn main() {
                 .disable::<LogPlugin>(),
         )
         // Add our own log plugin to help with comparing desync output
-        .add_plugin(log_plugin::LogPlugin)
+        .add_plugins(log_plugin::LogPlugin)
         .add_startup_system(startup)
         .add_startup_system(reset_rapier)
         .add_startup_system(respawn_all)
@@ -235,7 +235,7 @@ fn main() {
         );
 
     // Configure plugin without system setup, otherwise your simulation will run twice
-    app.add_plugin(
+    app.add_plugins(
         RapierPhysicsPlugin::<NoUserData>::default()
             // The physics scale really should not matter for a game of this size
             .with_physics_scale(1.)
@@ -267,11 +267,11 @@ fn main() {
     });
 
     // We don't really draw anything ourselves, just show us the raw physics colliders
-    app.add_plugin(RapierDebugRenderPlugin {
+    app.add_plugins(RapierDebugRenderPlugin {
         enabled: true,
         ..default()
     })
-    .add_plugin(WorldInspectorPlugin::new());
+    .add_plugins(WorldInspectorPlugin::new());
 
     // I have found that since GGRS is limiting the movement FPS anyway,
     // there isn't much of a point in rendering more frames than necessary.
@@ -282,7 +282,7 @@ fn main() {
     app.insert_resource(FramepaceSettings {
         limiter: Limiter::from_framerate(FPS as f64),
     })
-    .add_plugin(FramepacePlugin);
+    .add_plugins(FramepacePlugin);
 
     app.run();
 }
