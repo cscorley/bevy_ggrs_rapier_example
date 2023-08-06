@@ -27,7 +27,7 @@ mod prelude {
     pub use bevy::prelude::*;
     pub use bevy::tasks::IoTaskPool;
     pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
-    pub use bevy_ggrs::{GgrsPlugin, PlayerInputs, Rollback, Session, AddRollbackCommandExtension};
+    pub use bevy_ggrs::{AddRollbackCommandExtension, GgrsPlugin, PlayerInputs, Rollback, Session};
     pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
     pub use bevy_matchbox::matchbox_socket::WebRtcSocket;
     pub use bevy_rapier2d::prelude::*;
@@ -134,7 +134,7 @@ fn main() {
         .add_systems(Update, update_matchbox_socket)
         .add_systems(Update, handle_p2p_events);
 
-    GgrsPlugin::<GGRSConfig>::new()
+    GgrsPlugin::<GgrsConfig>::new()
         .with_update_frequency(FPS)
         .with_input_system(input)
         .register_rollback_resource::<PhysicsRollbackState>()

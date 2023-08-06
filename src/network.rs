@@ -18,7 +18,7 @@ pub fn connect(mut commands: Commands) {
 pub fn update_matchbox_socket(
     mut commands: Commands,
     mut socket: ResMut<MatchboxSocket<SingleChannel>>,
-    session: Option<Res<Session<GGRSConfig>>>,
+    session: Option<Res<Session<GgrsConfig>>>,
 ) {
     if session.is_some() {
         // Already have a session, skip for now.
@@ -42,7 +42,7 @@ pub fn update_matchbox_socket(
     }
 
     // create a new ggrs session
-    let mut session_build = SessionBuilder::<GGRSConfig>::new()
+    let mut session_build = SessionBuilder::<GgrsConfig>::new()
         .with_num_players(NUM_PLAYERS)
         .with_max_prediction_window(MAX_PREDICTION)
         .with_fps(FPS)
@@ -75,12 +75,12 @@ pub fn update_matchbox_socket(
     commands.insert_resource(LocalHandles { handles });
 
     // bevy_ggrs uses this to know when to start
-    commands.insert_resource(Session::P2PSession(session));
+    commands.insert_resource(Session::P2P(session));
 }
 
-pub fn handle_p2p_events(session: Option<ResMut<Session<GGRSConfig>>>) {
+pub fn handle_p2p_events(session: Option<ResMut<Session<GgrsConfig>>>) {
     if let Some(mut session) = session {
-        if let Session::P2PSession(session) = session.as_mut() {
+        if let Session::P2P(session) = session.as_mut() {
             for event in session.events() {
                 info!("GGRS Event: {:?}", event);
                 if let ggrs::GGRSEvent::Disconnected { addr: _ } = event {
