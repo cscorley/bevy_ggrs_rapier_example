@@ -1105,7 +1105,7 @@ dependencies = [
 [[package]]
 name = "bevy_matchbox"
 version = "0.6.0"
-source = "git+https://github.com/johanhelsing/matchbox?rev=9d25e6f02261543a275480600a3664fbcb458db1#9d25e6f02261543a275480600a3664fbcb458db1"
+source = "git+https://github.com/johanhelsing/matchbox?rev=0e8df99735c137699103f15a6f17f8b0fb4be233#0e8df99735c137699103f15a6f17f8b0fb4be233"
 dependencies = [
  "bevy",
  "cfg-if 1.0.0",
@@ -3490,7 +3490,7 @@ dependencies = [
 [[package]]
 name = "matchbox_protocol"
 version = "0.6.0"
-source = "git+https://github.com/johanhelsing/matchbox?rev=9d25e6f02261543a275480600a3664fbcb458db1#9d25e6f02261543a275480600a3664fbcb458db1"
+source = "git+https://github.com/johanhelsing/matchbox?rev=0e8df99735c137699103f15a6f17f8b0fb4be233#0e8df99735c137699103f15a6f17f8b0fb4be233"
 dependencies = [
  "cfg-if 1.0.0",
  "derive_more",
@@ -3501,7 +3501,7 @@ dependencies = [
 [[package]]
 name = "matchbox_socket"
 version = "0.6.1"
-source = "git+https://github.com/johanhelsing/matchbox?rev=9d25e6f02261543a275480600a3664fbcb458db1#9d25e6f02261543a275480600a3664fbcb458db1"
+source = "git+https://github.com/johanhelsing/matchbox?rev=0e8df99735c137699103f15a6f17f8b0fb4be233#0e8df99735c137699103f15a6f17f8b0fb4be233"
 dependencies = [
  "async-compat",
  "async-trait",
