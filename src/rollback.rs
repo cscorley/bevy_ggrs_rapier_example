@@ -23,8 +23,8 @@ pub struct LocalHandles {
 
 /// The main GGRS configuration type
 #[derive(Debug)]
-pub struct GGRSConfig;
-impl Config for GGRSConfig {
+pub struct GgrsConfig;
+impl Config for GgrsConfig {
     type Input = GGRSInput;
     // bevy_ggrs doesn't really use State, so just make this a small whatever
     type State = u8;
@@ -133,7 +133,7 @@ pub fn input(
 
 pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
-    inputs: Res<PlayerInputs<GGRSConfig>>,
+    inputs: Res<PlayerInputs<GgrsConfig>>,
     mut hashes: ResMut<RxFrameHashes>,
     local_handles: Res<LocalHandles>,
     physics_enabled: Res<PhysicsEnabled>,

@@ -86,11 +86,7 @@ pub fn reset_rapier(
     }
 }
 
-pub fn respawn_all(
-    mut commands: Commands,
-    mut rip: ResMut<RollbackIdProvider>,
-    spawn_pool: Query<(Entity, &DeterministicSpawn)>,
-) {
+pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &DeterministicSpawn)>) {
     commands.spawn(Camera2dBundle::default());
 
     // Everything must be spawned in the same order, every time,
@@ -110,7 +106,6 @@ pub fn respawn_all(
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ball"))
-        .insert(Rollback::new(rip.next_id()))
         .insert(DynamicColliderBundle {
             collider: Collider::ball(4.),
             restitution: Restitution::coefficient(2.0),
@@ -120,13 +115,13 @@ pub fn respawn_all(
         .insert(TransformBundle {
             local: Transform::from_xyz(0., 10., 0.),
             ..default()
-        });
+        })
+        .add_rollback();
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Player 1"))
         .insert(Player { handle: 0 })
-        .insert(Rollback::new(rip.next_id()))
         .insert(DynamicColliderBundle {
             collider: Collider::cuboid(8., 8.),
             locked_axes: LockedAxes::ROTATION_LOCKED,
@@ -135,13 +130,13 @@ pub fn respawn_all(
         .insert(TransformBundle {
             local: Transform::from_xyz(-10., -50., 0.),
             ..default()
-        });
+        })
+        .add_rollback();
 
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Player 2"))
         .insert(Player { handle: 1 })
-        .insert(Rollback::new(rip.next_id()))
         .insert(DynamicColliderBundle {
             collider: Collider::cuboid(8., 8.),
             locked_axes: LockedAxes::ROTATION_LOCKED,
@@ -150,7 +145,8 @@ pub fn respawn_all(
         .insert(TransformBundle {
             local: Transform::from_xyz(10., -50., 0.),
             ..default()
-        });
+        })
+        .add_rollback();
 
     let thickness = 10.0;
     let box_length = 200.0;

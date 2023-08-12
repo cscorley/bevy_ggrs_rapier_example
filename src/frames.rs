@@ -46,13 +46,13 @@ pub struct RollbackStatus {
 pub fn update_confirmed_frame(
     mut confirmed_frame: ResMut<ConfirmedFrame>,
     current_frame: Res<CurrentFrame>,
-    session: Option<Res<Session<GGRSConfig>>>,
+    session: Option<Res<Session<GgrsConfig>>>,
 ) {
     if let Some(session) = session {
         match &*session {
-            Session::SyncTestSession(_) => confirmed_frame.0 = current_frame.0,
-            Session::P2PSession(s) => confirmed_frame.0 = s.confirmed_frame(),
-            Session::SpectatorSession(_) => confirmed_frame.0 = current_frame.0,
+            Session::SyncTest(_) => confirmed_frame.0 = current_frame.0,
+            Session::P2P(s) => confirmed_frame.0 = s.confirmed_frame(),
+            Session::Spectator(_) => confirmed_frame.0 = current_frame.0,
         }
     }
 
@@ -67,13 +67,13 @@ pub fn update_current_frame(mut current_frame: ResMut<CurrentFrame>) {
 pub fn update_current_session_frame(
     mut current_session_frame: ResMut<CurrentSessionFrame>,
     current_frame: Res<CurrentFrame>,
-    session: Option<Res<Session<GGRSConfig>>>,
+    session: Option<Res<Session<GgrsConfig>>>,
 ) {
     if let Some(session) = session {
         match &*session {
-            Session::SyncTestSession(_) => current_session_frame.0 = current_frame.0,
-            Session::P2PSession(s) => current_session_frame.0 = s.current_frame(),
-            Session::SpectatorSession(_) => current_session_frame.0 = current_frame.0,
+            Session::SyncTest(_) => current_session_frame.0 = current_frame.0,
+            Session::P2P(s) => current_session_frame.0 = s.current_frame(),
+            Session::Spectator(_) => current_session_frame.0 = current_frame.0,
         }
     }
 
