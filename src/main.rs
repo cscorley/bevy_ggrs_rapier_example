@@ -65,7 +65,7 @@ mod prelude {
     // Check out their work on "Cargo Space", especially the blog posts, which are incredibly enlightening!
     // https://johanhelsing.studio/cargospace
     pub const MATCHBOX_ADDR: &str =
-        "wss://match-0-6.helsing.studio/bevy-ggrs-rapier-example?next=2";
+        "wss://match-0-7.helsing.studio/bevy-ggrs-rapier-example?next=2";
     // Care to run your own matchbox?  Great!
     // pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/bevy-ggrs-rapier-example?next=2";
     // TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
