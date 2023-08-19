@@ -43,6 +43,8 @@ bytemuck = { version = "1.12.3", features = ["derive"] }
 ggrs = { version = "0.9.4", features = ["sync-send"] }
 log = "0.4"
 rand = "0.8.5"
+# Avoid the pre-compiled binary
+serde = { version = "=1.0.171", features = ["serde_derive"] }
 tracing-subscriber = { version = "0.3.16", features = [
     "registry",
     "env-filter",
