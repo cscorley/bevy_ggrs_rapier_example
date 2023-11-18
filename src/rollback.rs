@@ -1,5 +1,6 @@
+use bevy::utils::HashMap;
+use bevy_ggrs::{LocalInputs, LocalPlayers};
 use bevy_matchbox::prelude::PeerId;
-use ggrs::Config;
 
 use crate::prelude::*;
 
@@ -15,21 +16,8 @@ pub struct Player {
     pub handle: usize,
 }
 
-/// Local handles, this should just be 1 entry in this demo, but you may end up wanting to implement 2v2
-#[derive(Default, Resource)]
-pub struct LocalHandles {
-    pub handles: Vec<PlayerHandle>,
-}
-
 /// The main GGRS configuration type
-#[derive(Debug)]
-pub struct GgrsConfig;
-impl Config for GgrsConfig {
-    type Input = GGRSInput;
-    // bevy_ggrs doesn't really use State, so just make this a small whatever
-    type State = u8;
-    type Address = PeerId;
-}
+pub type ExampleGgrsConfig = bevy_ggrs::GgrsConfig<GGRSInput, PeerId>;
 
 /// Our primary data struct; what players send to one another
 #[repr(C)]
@@ -53,14 +41,14 @@ pub struct GGRSInput {
 }
 
 pub fn input(
-    handle: In<PlayerHandle>,
-    local_handles: Res<LocalHandles>,
+    mut commands: Commands,
+    local_players: Res<LocalPlayers>,
     keyboard_input: Res<Input<KeyCode>>,
     mut random: ResMut<RandomInput>,
     physics_enabled: Res<PhysicsEnabled>,
     mut hashes: ResMut<FrameHashes>,
     validatable_frame: Res<ValidatableFrame>,
-) -> GGRSInput {
+) {
     let mut input: u16 = 0;
     let mut last_confirmed_frame = ggrs::NULL_FRAME;
     let mut last_confirmed_hash = 0;
@@ -85,64 +73,67 @@ pub fn input(
         }
     }
 
-    // Do not do anything until physics are live
-    if !physics_enabled.0 {
-        return GGRSInput {
-            input,
-            last_confirmed_frame,
-            last_confirmed_hash,
-        };
-    }
+    let mut local_inputs = HashMap::new();
 
-    // Build the input
-    if keyboard_input.pressed(KeyCode::W) {
-        input |= INPUT_UP;
-    }
-    if keyboard_input.pressed(KeyCode::A) {
-        input |= INPUT_LEFT;
-    }
-    if keyboard_input.pressed(KeyCode::S) {
-        input |= INPUT_DOWN;
-    }
-    if keyboard_input.pressed(KeyCode::D) {
-        input |= INPUT_RIGHT;
-    }
+    for handle in &local_players.0 {
+        // Do not do anything until physics are live
+        if physics_enabled.0 {
+            // Build the input
+            if keyboard_input.pressed(KeyCode::W) {
+                input |= INPUT_UP;
+            }
+            if keyboard_input.pressed(KeyCode::A) {
+                input |= INPUT_LEFT;
+            }
+            if keyboard_input.pressed(KeyCode::S) {
+                input |= INPUT_DOWN;
+            }
+            if keyboard_input.pressed(KeyCode::D) {
+                input |= INPUT_RIGHT;
+            }
 
-    // toggle off random input if our local moves at all
-    if input != 0 && random.on && local_handles.handles.contains(&handle.0) {
-        random.on = false;
-    } else if input == 0 && random.on && local_handles.handles.contains(&handle.0) {
-        let mut rng = thread_rng();
-        // Return a random input sometimes, or maybe nothing.
-        // Helps to trigger input-based rollbacks from the unplayed side
-        match rng.gen_range(0..10) {
-            0 => input = INPUT_UP,
-            1 => input = INPUT_LEFT,
-            2 => input = INPUT_DOWN,
-            3 => input = INPUT_RIGHT,
-            _ => (),
+            // toggle off random input if our local moves at all
+            if input != 0 && random.on {
+                random.on = false;
+            } else if input == 0 && random.on {
+                let mut rng = thread_rng();
+                // Return a random input sometimes, or maybe nothing.
+                // Helps to trigger input-based rollbacks from the unplayed side
+                match rng.gen_range(0..10) {
+                    0 => input = INPUT_UP,
+                    1 => input = INPUT_LEFT,
+                    2 => input = INPUT_DOWN,
+                    3 => input = INPUT_RIGHT,
+                    _ => (),
+                }
+            }
         }
+
+        local_inputs.insert(
+            *handle,
+            GGRSInput {
+                input,
+                last_confirmed_frame,
+                last_confirmed_hash,
+            },
+        );
     }
 
-    GGRSInput {
-        input,
-        last_confirmed_frame,
-        last_confirmed_hash,
-    }
+    commands.insert_resource(LocalInputs::<ExampleGgrsConfig>(local_inputs));
 }
 
 pub fn apply_inputs(
     mut query: Query<(&mut Velocity, &Player)>,
-    inputs: Res<PlayerInputs<GgrsConfig>>,
+    inputs: Res<PlayerInputs<ExampleGgrsConfig>>,
     mut hashes: ResMut<RxFrameHashes>,
-    local_handles: Res<LocalHandles>,
+    local_handles: Res<LocalPlayers>,
     physics_enabled: Res<PhysicsEnabled>,
 ) {
     for (mut v, p) in query.iter_mut() {
         let (game_input, input_status) = inputs[p.handle];
         // Check the desync for this player if they're not a local handle
         // Did they send us some goodies?
-        if !local_handles.handles.contains(&p.handle) && game_input.last_confirmed_frame > 0 {
+        if !local_handles.0.contains(&p.handle) && game_input.last_confirmed_frame > 0 {
             log::info!("Got frame data {:?}", game_input);
             if let Some(frame_hash) = hashes
                 .0

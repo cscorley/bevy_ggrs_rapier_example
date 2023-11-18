@@ -27,9 +27,10 @@ mod prelude {
     pub use bevy::prelude::*;
     pub use bevy::tasks::IoTaskPool;
     pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
-    pub use bevy_ggrs::{AddRollbackCommandExtension, GgrsPlugin, PlayerInputs, Rollback, Session};
+    pub use bevy_ggrs::prelude::*;
     pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
     pub use bevy_matchbox::matchbox_socket::WebRtcSocket;
+    pub use bevy_matchbox::prelude::*;
     pub use bevy_rapier2d::prelude::*;
     pub use bytemuck::{Pod, Zeroable};
     pub use ggrs::{Frame, InputStatus, PlayerHandle, PlayerType, SessionBuilder};
@@ -79,6 +80,7 @@ enum ExampleSystemSets {
 }
 
 use bevy::ecs::schedule::ScheduleBuildSettings;
+use bevy_ggrs::{GgrsApp, GgrsPlugin};
 
 use crate::prelude::*;
 
@@ -136,19 +138,18 @@ fn main() {
         .add_systems(Update, update_matchbox_socket)
         .add_systems(Update, handle_p2p_events);
 
-    GgrsPlugin::<GgrsConfig>::new()
-        .with_update_frequency(FPS)
-        .with_input_system(input)
-        .register_rollback_resource::<PhysicsRollbackState>()
-        .register_rollback_resource::<CurrentFrame>()
+    app.add_plugins(GgrsPlugin::<ExampleGgrsConfig>::default())
+        .set_rollback_schedule_fps(FPS)
+        .add_systems(bevy_ggrs::ReadInputs, input)
+        .rollback_resource_with_reflect::<PhysicsRollbackState>()
+        .rollback_resource_with_reflect::<CurrentFrame>()
         // Store everything that Rapier updates in its Writeback stage
-        .register_rollback_component::<GlobalTransform>()
-        .register_rollback_component::<Transform>()
-        .register_rollback_component::<Velocity>()
-        .register_rollback_component::<Sleeping>()
+        .rollback_component_with_reflect::<GlobalTransform>()
+        .rollback_component_with_reflect::<Transform>()
+        .rollback_component_with_reflect::<Velocity>()
+        .rollback_component_with_reflect::<Sleeping>()
         // Game stuff
-        .register_rollback_resource::<EnablePhysicsAfter>()
-        .build(&mut app);
+        .rollback_resource_with_reflect::<EnablePhysicsAfter>();
 
     // We need to a bunch of systems into the GGRSSchedule.
     // So, grab it and lets configure it with our systems, and the one from Rapier.
