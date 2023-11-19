@@ -187,6 +187,7 @@ fn main() {
                 // these three must actually come after we update rollback status
                 update_validatable_frame,
                 toggle_physics,
+                validate_internal,
                 // rollback_rapier_context,
                 // Make sure to flush everything before we apply our game logic.
                 apply_deferred,
@@ -235,9 +236,13 @@ fn main() {
 
     app.add_systems(
         LoadWorld,
-        (rollback_rapier_context, force_update_rollbackables)
+        (
+            rollback_rapier_context,
+            force_update_rollbackables,
+            apply_deferred,
+        )
             .chain()
-            .in_set(LoadWorldSet::Data),
+            .after(LoadWorldSet::DataFlush),
     );
 
     app.add_systems(

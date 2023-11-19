@@ -1,3 +1,5 @@
+use bevy_ggrs::RollbackFrameCount;
+
 use crate::prelude::*;
 
 /// Left outside of the rollback system to detect rollbacks
@@ -126,4 +128,23 @@ pub fn update_validatable_frame(
     ) - (MAX_PREDICTION as i32);
 
     log::info!("validatable frame: {}", validatable_frame.0);
+}
+
+pub fn validate_internal(
+    current_frame: Res<CurrentFrame>,
+    current_session_frame: Res<CurrentSessionFrame>,
+    confirmed_frame: Res<ConfirmedFrame>,
+    ggrs_current_frame: Res<RollbackFrameCount>,
+    ggrs_confirmed_frame: Res<bevy_ggrs::ConfirmedFrameCount>,
+) {
+    assert_eq!(
+        current_frame.0,
+        i32::from(*ggrs_current_frame.as_ref()),
+        "Current frames differ",
+    );
+    assert_eq!(
+        confirmed_frame.0,
+        i32::from(*ggrs_confirmed_frame.as_ref()),
+        "Confirmed frames differ",
+    );
 }
