@@ -46,7 +46,7 @@ pub struct RollbackStatus {
 pub fn update_confirmed_frame(
     mut confirmed_frame: ResMut<ConfirmedFrame>,
     current_frame: Res<CurrentFrame>,
-    session: Option<Res<Session<GgrsConfig>>>,
+    session: Option<Res<Session<ExampleGgrsConfig>>>,
 ) {
     if let Some(session) = session {
         match &*session {
@@ -67,7 +67,7 @@ pub fn update_current_frame(mut current_frame: ResMut<CurrentFrame>) {
 pub fn update_current_session_frame(
     mut current_session_frame: ResMut<CurrentSessionFrame>,
     current_frame: Res<CurrentFrame>,
-    session: Option<Res<Session<GgrsConfig>>>,
+    session: Option<Res<Session<ExampleGgrsConfig>>>,
 ) {
     if let Some(session) = session {
         match &*session {

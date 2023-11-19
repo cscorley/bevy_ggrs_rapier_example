@@ -13,8 +13,6 @@ pub fn startup(mut commands: Commands) {
     commands.insert_resource(FrameHashes::default());
     commands.insert_resource(RxFrameHashes::default());
 
-    // ggrs local players
-    commands.insert_resource(LocalHandles::default());
     //commands.insert_resource(WrappedSessionType::default());
 
     // physics toggling
