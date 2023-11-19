@@ -80,7 +80,7 @@ enum ExampleSystemSets {
 }
 
 use bevy::ecs::schedule::ScheduleBuildSettings;
-use bevy_ggrs::{GgrsApp, GgrsPlugin};
+use bevy_ggrs::{GgrsApp, GgrsPlugin, LoadWorld, SaveWorld};
 
 use crate::prelude::*;
 
@@ -187,7 +187,7 @@ fn main() {
                 // these three must actually come after we update rollback status
                 update_validatable_frame,
                 toggle_physics,
-                rollback_rapier_context,
+                // rollback_rapier_context,
                 // Make sure to flush everything before we apply our game logic.
                 apply_deferred,
             )
@@ -226,12 +226,24 @@ fn main() {
         )
         .add_systems(
             (
-                save_rapier_context, // This must execute after writeback to store the RapierContext
-                apply_deferred,      // Flushing again
+                //save_rapier_context, // This must execute after writeback to store the RapierContext
+                apply_deferred, // Flushing again
             )
                 .chain()
                 .in_set(ExampleSystemSets::SaveAndChecksum),
         );
+
+    app.add_systems(
+        LoadWorld,
+        (rollback_rapier_context, force_update_rollbackables)
+            .chain()
+            .in_set(LoadWorldSet::Data),
+    );
+
+    app.add_systems(
+        SaveWorld,
+        save_rapier_context.in_set(SaveWorldSet::Snapshot),
+    );
 
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugins(

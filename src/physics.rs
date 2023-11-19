@@ -75,7 +75,16 @@ pub fn rollback_rapier_context(
     rollback_status: Res<RollbackStatus>,
     game_state: Res<PhysicsRollbackState>,
     mut rapier: ResMut<RapierContext>,
+    current_frame: Res<CurrentFrame>,
+    asdf: Res<bevy_ggrs::RollbackFrameCount>,
+    asdf2: Res<bevy_ggrs::ConfirmedFrameCount>,
 ) {
+    log::info!(
+        "------ start rollback: {:?} {:?} {:?} ------",
+        current_frame.0,
+        asdf,
+        asdf2
+    );
     let mut checksum = game_state.rapier_checksum;
     log::info!("Context pre-hash at start: {:?}", checksum);
 
@@ -95,7 +104,8 @@ pub fn rollback_rapier_context(
     //
     // You can also test that desync detection is working by disabling:
     // if false {
-    if rollback_status.is_rollback && rollback_status.rollback_frame > 1 {
+    // if rollback_status.is_rollback && rollback_status.rollback_frame > 1 {
+    if true {
         if let Some(state_context) = game_state.rapier_state.as_ref() {
             if let Ok(context) = bincode::deserialize::<RapierContext>(state_context) {
                 // commands.insert_resource(context);
@@ -129,6 +139,7 @@ pub fn rollback_rapier_context(
             );
         }
     }
+    log::info!("------ end rollback: {:?} ------", current_frame.0);
 }
 
 pub fn save_rapier_context(
@@ -137,7 +148,15 @@ pub fn save_rapier_context(
     mut hashes: ResMut<FrameHashes>,
     confirmed_frame: Res<ConfirmedFrame>,
     current_frame: Res<CurrentFrame>,
+    asdf: Res<bevy_ggrs::RollbackFrameCount>,
+    asdf2: Res<bevy_ggrs::ConfirmedFrameCount>,
 ) {
+    log::info!(
+        "------ start save: {:?} {:?} {:?} ------",
+        current_frame.0,
+        asdf,
+        asdf2
+    );
     // This serializes our context every frame.  It's not great, but works to
     // integrate the two plugins.  To do less of it, we would need to change
     // bevy_ggrs to serialize arbitrary structs like this one in addition to
@@ -179,4 +198,5 @@ pub fn save_rapier_context(
 
         log::info!("----- end frame {} -----", current_frame.0);
     }
+    log::info!("------ end save: {:?} ------", current_frame.0);
 }
