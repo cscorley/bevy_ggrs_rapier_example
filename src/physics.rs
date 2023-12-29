@@ -1,3 +1,5 @@
+use bevy_ggrs::RollbackFrameCount;
+
 use crate::prelude::*;
 
 /// Our physics rollback state container, which will be rolled back and we will
@@ -46,21 +48,22 @@ impl EnablePhysicsAfter {
 
 pub fn toggle_physics(
     enable_physics_after: Res<EnablePhysicsAfter>,
-    current_frame: Res<CurrentFrame>,
+    current_frame: Res<RollbackFrameCount>,
     mut physics_enabled: ResMut<PhysicsEnabled>,
     mut config: ResMut<RapierConfiguration>,
 ) {
+    let current_frame: i32 = (*current_frame).into();
     log::info!(
         "Physics on frame {:?} {:?} {:?}",
-        current_frame.0,
+        current_frame,
         physics_enabled.0,
         enable_physics_after
     );
-    let should_activate = enable_physics_after.is_enabled(current_frame.0);
+    let should_activate = enable_physics_after.is_enabled(current_frame);
     if physics_enabled.0 != should_activate {
         log::info!(
             "Toggling physics on frame {:?}: {:?} -> {:?}",
-            current_frame.0,
+            current_frame,
             physics_enabled.0,
             should_activate
         );
@@ -132,7 +135,6 @@ pub fn rollback_rapier_context(
 pub fn save_rapier_context(
     mut game_state: ResMut<PhysicsRollbackState>,
     rapier: Res<RapierContext>,
-    current_frame: Res<CurrentFrame>,
 ) {
     // This serializes our context every frame.  It's not great, but works to
     // integrate the two plugins.  To do less of it, we would need to change
@@ -152,6 +154,4 @@ pub fn save_rapier_context(
             game_state.rapier_state.reflect_hash()
         );
     }
-
-    log::info!("----- end frame {} -----", current_frame.0);
 }
