@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 /// Our physics rollback state container, which will be rolled back and we will
 /// use to restore our physics state.
-#[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
+#[derive(Default, Reflect, Clone, Hash, Resource, PartialEq, Eq)]
 #[reflect(Hash, Resource, PartialEq)]
 pub struct PhysicsRollbackState {
     pub rapier_state: Vec<u8>,
