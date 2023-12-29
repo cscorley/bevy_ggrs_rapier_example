@@ -132,6 +132,7 @@ pub fn rollback_rapier_context(
 pub fn save_rapier_context(
     mut game_state: ResMut<PhysicsRollbackState>,
     rapier: Res<RapierContext>,
+    current_frame: Res<CurrentFrame>,
 ) {
     // This serializes our context every frame.  It's not great, but works to
     // integrate the two plugins.  To do less of it, we would need to change
@@ -151,4 +152,6 @@ pub fn save_rapier_context(
             game_state.rapier_state.reflect_hash()
         );
     }
+
+    log::info!("----- end frame {} -----", current_frame.0);
 }
