@@ -66,8 +66,8 @@ pub fn pause_physics_test(
 ) {
     let current_frame: i32 = (*current_frame).into();
 
-    if current_frame % (FPS as i32 * 2) == 0 {
-        // Disable physics every 30 seconds to test physics pausing and resuming
+    if current_frame % (FPS as i32 * 10) == 0 {
+        // Disable physics every few seconds to test physics pausing and resuming
         enable_physics_after.update_after_default(current_frame);
         log::info!(
             "Physics on frame {:?} {:?}",
