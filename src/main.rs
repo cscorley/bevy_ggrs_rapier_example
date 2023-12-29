@@ -133,6 +133,8 @@ fn main() {
         .set_rollback_schedule_fps(FPS)
         .add_systems(bevy_ggrs::ReadInputs, input)
         .rollback_resource_with_clone::<PhysicsRollbackState>()
+        // We must add a specific checksum check for everything we want to include in desync detection.
+        // It is probably OK to just check the components, but for demo purposes let's make sure Rapier always agrees.
         .checksum_resource_with_hash::<PhysicsRollbackState>()
         .rollback_resource_with_reflect::<CurrentFrame>()
         // Store everything that Rapier updates in its Writeback stage
