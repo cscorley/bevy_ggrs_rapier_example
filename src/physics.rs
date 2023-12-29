@@ -93,8 +93,8 @@ pub fn rollback_rapier_context(
     // and is entirely a hack since we don't enable physics until later anyway.
     //
     // You can also test that desync detection is working by disabling:
-    // if false {
-    if rollback_status.is_rollback && rollback_status.rollback_frame > 1 {
+    if false {
+        // if rollback_status.is_rollback && rollback_status.rollback_frame > 1 {
         if let Ok(context) = bincode::deserialize::<RapierContext>(game_state.rapier_state.as_ref())
         {
             // commands.insert_resource(context);
@@ -144,11 +144,11 @@ pub fn save_rapier_context(
             game_state.rapier_state.reflect_hash()
         );
 
+        game_state.rapier_state = context_bytes;
+
         log::info!(
             "Context hash after save: {:?}",
-            context_bytes.reflect_hash()
+            game_state.rapier_state.reflect_hash()
         );
-
-        game_state.rapier_state = context_bytes;
     }
 }
