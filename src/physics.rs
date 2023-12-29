@@ -84,7 +84,10 @@ pub fn rollback_rapier_context(
     // in this case.  This prevents lagged clients from getting immediate desync
     // and is entirely a hack since we don't enable physics until later anyway.
     //
-    // You can also test that desync detection is working by disabling:
+    // You can also test that desync detection is working by "disabling" this
+    // system by uncommenting this line:
+    // return;
+
     if rollback_status.is_rollback && rollback_status.rollback_frame > 1 {
         // Serialize our physics state for hashing, to display the state in-flight.
         // This should not be necessary for this demo to work, as we will do the
