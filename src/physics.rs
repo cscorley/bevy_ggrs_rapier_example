@@ -37,6 +37,20 @@ impl EnablePhysicsAfter {
         Self::new(offset, offset + (FPS * LOAD_SECONDS) as i32)
     }
 
+    pub fn update_after_default(&mut self, offset: Frame) {
+        let old_start = self.start;
+        let old_end = self.end;
+        self.start = offset;
+        self.end = offset + (FPS * LOAD_SECONDS) as i32;
+        log::info!(
+            "Updated enable after ({:?}, {:?}) -> ({:?}, {:?})",
+            old_start,
+            old_end,
+            self.start,
+            self.end
+        );
+    }
+
     pub fn is_enabled(&self, frame: Frame) -> bool {
         // Since the starting frame is calculated at the end,
         // when we rollback to the start frame we will have the enable after
@@ -47,7 +61,7 @@ impl EnablePhysicsAfter {
 }
 
 pub fn toggle_physics(
-    enable_physics_after: Res<EnablePhysicsAfter>,
+    mut enable_physics_after: ResMut<EnablePhysicsAfter>,
     current_frame: Res<RollbackFrameCount>,
     mut physics_enabled: ResMut<PhysicsEnabled>,
     mut config: ResMut<RapierConfiguration>,
@@ -59,6 +73,12 @@ pub fn toggle_physics(
         physics_enabled.0,
         enable_physics_after
     );
+
+    if current_frame % (FPS as i32 * 30) == 0 {
+        // Disable physics every 30 seconds to test physics pausing and resuming
+        enable_physics_after.update_after_default(current_frame)
+    }
+
     let should_activate = enable_physics_after.is_enabled(current_frame);
     if physics_enabled.0 != should_activate {
         log::info!(
