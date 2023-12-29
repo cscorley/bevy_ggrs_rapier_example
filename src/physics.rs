@@ -5,8 +5,7 @@ use crate::prelude::*;
 #[derive(Default, Reflect, Hash, Resource, PartialEq, Eq)]
 #[reflect(Hash, Resource, PartialEq)]
 pub struct PhysicsRollbackState {
-    pub rapier_state: Option<Vec<u8>>,
-    pub rapier_checksum: u16,
+    pub rapier_state: Vec<u8>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Resource, Hash, Reflect)]
@@ -76,15 +75,15 @@ pub fn rollback_rapier_context(
     game_state: Res<PhysicsRollbackState>,
     mut rapier: ResMut<RapierContext>,
 ) {
-    let mut checksum = game_state.rapier_checksum;
+    let mut checksum = game_state.rapier_state.reflect_hash();
     log::info!("Context pre-hash at start: {:?}", checksum);
 
     // Serialize our physics state for hashing, to display the state in-flight.
     // This should not be necessary for this demo to work, as we will do the
     // real checksum during `save_game_state` at the end of the pipeline.
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        checksum = fletcher16(&context_bytes);
-        log::info!("Context hash at start: {}", checksum);
+        checksum = context_bytes.reflect_hash();
+        log::info!("Context hash at start: {:?}", checksum);
     }
 
     // Only restore our state if we are in a rollback.  This step is *critical*.
@@ -96,47 +95,43 @@ pub fn rollback_rapier_context(
     // You can also test that desync detection is working by disabling:
     // if false {
     if rollback_status.is_rollback && rollback_status.rollback_frame > 1 {
-        if let Some(state_context) = game_state.rapier_state.as_ref() {
-            if let Ok(context) = bincode::deserialize::<RapierContext>(state_context) {
-                // commands.insert_resource(context);
-                // *rapier = context;
+        if let Ok(context) = bincode::deserialize::<RapierContext>(game_state.rapier_state.as_ref())
+        {
+            // commands.insert_resource(context);
+            // *rapier = context;
 
-                // Inserting or replacing directly seems to screw up some of the
-                // crate-only properties.  So, we'll copy over each public
-                // property instead.
-                rapier.bodies = context.bodies;
-                rapier.broad_phase = context.broad_phase;
-                rapier.ccd_solver = context.ccd_solver;
-                rapier.colliders = context.colliders;
-                rapier.impulse_joints = context.impulse_joints;
-                rapier.integration_parameters = context.integration_parameters;
-                rapier.islands = context.islands;
-                rapier.multibody_joints = context.multibody_joints;
-                rapier.narrow_phase = context.narrow_phase;
-                rapier.query_pipeline = context.query_pipeline;
+            // Inserting or replacing directly seems to screw up some of the
+            // crate-only properties.  So, we'll copy over each public
+            // property instead.
+            rapier.bodies = context.bodies;
+            rapier.broad_phase = context.broad_phase;
+            rapier.ccd_solver = context.ccd_solver;
+            rapier.colliders = context.colliders;
+            rapier.impulse_joints = context.impulse_joints;
+            rapier.integration_parameters = context.integration_parameters;
+            rapier.islands = context.islands;
+            rapier.multibody_joints = context.multibody_joints;
+            rapier.narrow_phase = context.narrow_phase;
+            rapier.query_pipeline = context.query_pipeline;
 
-                // pipeline is not serialized
-                // rapier.pipeline = context.pipeline;
-            }
+            // pipeline is not serialized
+            // rapier.pipeline = context.pipeline;
         }
+    }
 
-        // Again, not necessary for the demo, just to show the rollback changes
-        // as they occur.
-        if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-            log::info!(
-                "Context hash after rollback: {}",
-                fletcher16(&context_bytes)
-            );
-        }
+    // Again, not necessary for the demo, just to show the rollback changes
+    // as they occur.
+    if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
+        log::info!(
+            "Context hash after rollback: {:?}",
+            context_bytes.reflect_hash()
+        );
     }
 }
 
 pub fn save_rapier_context(
     mut game_state: ResMut<PhysicsRollbackState>,
     rapier: Res<RapierContext>,
-    mut hashes: ResMut<FrameHashes>,
-    confirmed_frame: Res<ConfirmedFrame>,
-    current_frame: Res<CurrentFrame>,
 ) {
     // This serializes our context every frame.  It's not great, but works to
     // integrate the two plugins.  To do less of it, we would need to change
@@ -144,39 +139,16 @@ pub fn save_rapier_context(
     // component tracking.  If you need this to happen less, I'd recommend not
     // using the plugin and implementing GGRS yourself.
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        log::info!("Context hash before save: {}", game_state.rapier_checksum);
-        game_state.rapier_checksum = fletcher16(&context_bytes);
-        game_state.rapier_state = Some(context_bytes);
-        log::info!("Context hash after save: {}", game_state.rapier_checksum);
+        log::info!(
+            "Context hash before save: {:?}",
+            game_state.rapier_state.reflect_hash()
+        );
 
-        if let Some(frame_hash) = hashes
-            .0
-            .get_mut((current_frame.0 as usize) % DESYNC_MAX_FRAMES)
-        {
-            if frame_hash.frame == current_frame.0 && frame_hash.sent {
-                // If this frame hash has already been sent and its the
-                // same one then the hashes better damn well match
-                assert_eq!(
-                    frame_hash.rapier_checksum, game_state.rapier_checksum,
-                    "INTEGRITY BREACHED"
-                );
-                log::info!(
-                    "Integrity challenged of frame {}: {} vs {}",
-                    frame_hash.frame,
-                    frame_hash.rapier_checksum,
-                    game_state.rapier_checksum
-                );
-            }
+        log::info!(
+            "Context hash after save: {:?}",
+            context_bytes.reflect_hash()
+        );
 
-            frame_hash.frame = current_frame.0;
-            frame_hash.rapier_checksum = game_state.rapier_checksum;
-            frame_hash.sent = false;
-            frame_hash.validated = false;
-            log::debug!("confirmed frame: {:?}", confirmed_frame);
-            frame_hash.confirmed = frame_hash.frame <= confirmed_frame.0;
-            log::debug!("Stored frame hash at save: {:?}", frame_hash);
-        }
-
-        log::info!("----- end frame {} -----", current_frame.0);
+        game_state.rapier_state = context_bytes;
     }
 }

@@ -17,22 +17,6 @@ pub struct CurrentSessionFrame(pub Frame);
 #[reflect(Hash)]
 pub struct CurrentFrame(pub Frame);
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Resource, Hash, Reflect)]
-#[reflect(Hash)]
-pub struct ValidatableFrame(pub Frame);
-
-impl Default for ValidatableFrame {
-    fn default() -> Self {
-        Self(std::i32::MIN)
-    }
-}
-
-impl ValidatableFrame {
-    pub fn is_validatable(&self, frame: Frame) -> bool {
-        frame < self.0
-    }
-}
-
 /// Should not be rolled back... obviously?
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Resource, Hash, Reflect)]
 #[reflect(Hash)]
@@ -112,18 +96,4 @@ pub fn update_rollback_status(
     // a rollback once, we have to resimulate all frames back to where we left
     // off... and there may be additional rollbacks that happen during that!
     rollback_status.last_frame = current_frame.0;
-}
-
-pub fn update_validatable_frame(
-    current_frame: Res<CurrentFrame>,
-    current_session_frame: Res<CurrentSessionFrame>,
-    confirmed_frame: Res<ConfirmedFrame>,
-    mut validatable_frame: ResMut<ValidatableFrame>,
-) {
-    validatable_frame.0 = std::cmp::min(
-        current_frame.0,
-        std::cmp::min(current_session_frame.0, confirmed_frame.0),
-    ) - (MAX_PREDICTION as i32);
-
-    log::info!("validatable frame: {}", validatable_frame.0);
 }

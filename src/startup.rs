@@ -7,11 +7,6 @@ pub fn startup(mut commands: Commands) {
     commands.insert_resource(CurrentSessionFrame::default());
     commands.insert_resource(ConfirmedFrame::default());
     commands.insert_resource(RollbackStatus::default());
-    commands.insert_resource(ValidatableFrame::default());
-
-    // desync detection
-    commands.insert_resource(FrameHashes::default());
-    commands.insert_resource(RxFrameHashes::default());
 
     //commands.insert_resource(WrappedSessionType::default());
 
@@ -72,12 +67,10 @@ pub fn reset_rapier(
     // Serialize our "blank" slate for frame 0.
     // This is actually important because it is possible to rollback to this!
     if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        let rapier_checksum = fletcher16(&context_bytes);
-        log::info!("Context hash at init: {}", rapier_checksum);
+        log::info!("Context hash at init: {:?}", context_bytes.reflect_hash());
 
         commands.insert_resource(PhysicsRollbackState {
-            rapier_state: Some(context_bytes),
-            rapier_checksum,
+            rapier_state: context_bytes,
         })
     } else {
         commands.insert_resource(PhysicsRollbackState::default());
