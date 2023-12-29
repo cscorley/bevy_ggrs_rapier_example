@@ -78,17 +78,6 @@ pub fn rollback_rapier_context(
     game_state: Res<PhysicsRollbackState>,
     mut rapier: ResMut<RapierContext>,
 ) {
-    let mut checksum = game_state.rapier_state.reflect_hash();
-    log::info!("Context pre-hash at start: {:?}", checksum);
-
-    // Serialize our physics state for hashing, to display the state in-flight.
-    // This should not be necessary for this demo to work, as we will do the
-    // real checksum during `save_game_state` at the end of the pipeline.
-    if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        checksum = context_bytes.reflect_hash();
-        log::info!("Context hash at start: {:?}", checksum);
-    }
-
     // Only restore our state if we are in a rollback.  This step is *critical*.
     // Only doing this during rollbacks saves us a step every frame.  Here, we
     // also do not allow rollback to frame 0.  Physics state is already correct
@@ -96,8 +85,23 @@ pub fn rollback_rapier_context(
     // and is entirely a hack since we don't enable physics until later anyway.
     //
     // You can also test that desync detection is working by disabling:
-    //if false {
     if rollback_status.is_rollback && rollback_status.rollback_frame > 1 {
+        // Serialize our physics state for hashing, to display the state in-flight.
+        // This should not be necessary for this demo to work, as we will do the
+        // real checksum during `save_game_state` at the end of the pipeline.
+        // TODO:  Remove this for your real game.  It is unnecessary work!
+        log::info!(
+            "Context expected hash before rollback: {:?}",
+            game_state.rapier_state.reflect_hash()
+        );
+
+        if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
+            log::info!(
+                "Context hash before rollback: {:?}",
+                context_bytes.reflect_hash()
+            );
+        }
+
         if let Ok(context) = bincode::deserialize::<RapierContext>(game_state.rapier_state.as_ref())
         {
             // commands.insert_resource(context);
@@ -120,15 +124,16 @@ pub fn rollback_rapier_context(
             // pipeline is not serialized
             // rapier.pipeline = context.pipeline;
         }
-    }
 
-    // Again, not necessary for the demo, just to show the rollback changes
-    // as they occur.
-    if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
-        log::info!(
-            "Context hash after rollback: {:?}",
-            context_bytes.reflect_hash()
-        );
+        // Again, not necessary for the demo, just to show the rollback changes
+        // as they occur.
+        // TODO:  Remove this for your real game.  It is unnecessary work!
+        if let Ok(context_bytes) = bincode::serialize(rapier.as_ref()) {
+            log::info!(
+                "Context hash after rollback: {:?}",
+                context_bytes.reflect_hash()
+            );
+        }
     }
 }
 
