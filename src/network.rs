@@ -54,7 +54,8 @@ pub fn update_matchbox_socket(
         // anyway.  With it on, it seems that there are going to be more frames
         // in between rollbacks and that can lead to more inaccuracies building
         // up over time.
-        .with_sparse_saving_mode(false);
+        .with_sparse_saving_mode(false)
+        .with_desync_detection_mode(ggrs::DesyncDetection::On { interval: 1 });
 
     // add players
     let players = socket.players();
@@ -85,8 +86,22 @@ pub fn handle_p2p_events(session: Option<ResMut<Session<ExampleGgrsConfig>>>) {
         if let Session::P2P(session) = session.as_mut() {
             for event in session.events() {
                 info!("GGRS Event: {:?}", event);
-                if let ggrs::GgrsEvent::Disconnected { addr: _ } = event {
-                    panic!("Other player disconnected");
+                match event {
+                    GgrsEvent::Disconnected { addr } => {
+                        panic!("Other player@{:?} disconnected", addr)
+                    }
+                    GgrsEvent::DesyncDetected {
+                        frame,
+                        local_checksum,
+                        remote_checksum,
+                        addr,
+                    } => {
+                        panic!(
+                            "Desync detected on frame {} local {} remote {}@{:?}",
+                            frame, local_checksum, remote_checksum, addr
+                        );
+                    }
+                    _ => (),
                 }
             }
         }

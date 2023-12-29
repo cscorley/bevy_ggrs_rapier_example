@@ -1,6 +1,4 @@
-mod checksum;
 mod colliders;
-mod desync;
 mod frames;
 mod log_plugin;
 mod network;
@@ -12,9 +10,7 @@ mod startup;
 
 // A prelude to simplify other file imports
 mod prelude {
-    pub use crate::checksum::*;
     pub use crate::colliders::*;
-    pub use crate::desync::*;
     pub use crate::frames::*;
     pub use crate::log_plugin::LogSettings;
     pub use crate::network::*;
@@ -46,11 +42,6 @@ mod prelude {
     // occurs if two clients have high latency.  Having this in place at least for 1
     // frame helps prevent that :-)
     pub const LOAD_SECONDS: usize = 1;
-
-    // How far back we'll keep frame hash info for our other player. This should be
-    // some multiple of MAX_PREDICTION, preferrably 3x, so that we can desync detect
-    // outside the rollback and prediction windows.
-    pub const DESYNC_MAX_FRAMES: usize = 30;
 
     // TODO: Hey you!!! You, the one reading this!  Yes, you.
 
@@ -141,8 +132,10 @@ fn main() {
     app.add_plugins(GgrsPlugin::<ExampleGgrsConfig>::default())
         .set_rollback_schedule_fps(FPS)
         .add_systems(bevy_ggrs::ReadInputs, input)
-        .rollback_resource_with_reflect::<PhysicsRollbackState>()
-        .rollback_resource_with_reflect::<CurrentFrame>()
+        // We must add a specific checksum check for everything we want to include in desync detection.
+        // It is probably OK to just check the components, but for demo purposes let's make sure Rapier always agrees.
+        .checksum_resource_with_hash::<PhysicsRollbackState>()
+        .rollback_resource_with_clone::<PhysicsRollbackState>()
         // Store everything that Rapier updates in its Writeback stage
         .rollback_component_with_reflect::<GlobalTransform>()
         .rollback_component_with_reflect::<Transform>()
@@ -179,13 +172,12 @@ fn main() {
         )
         .add_systems(
             (
-                update_current_frame,
+                log_start_frame,
                 update_current_session_frame,
-                update_confirmed_frame,
+                log_confirmed_frame,
                 // the three above must actually come before we update rollback status
                 update_rollback_status,
                 // these three must actually come after we update rollback status
-                update_validatable_frame,
                 toggle_physics,
                 rollback_rapier_context,
                 // Make sure to flush everything before we apply our game logic.
@@ -201,10 +193,6 @@ fn main() {
         .add_systems(
             (
                 apply_inputs,
-                // The `frame_validator` relies on the execution of `apply_inputs` and must come after.
-                // It could happen anywhere else, I just stuck it here to be clear.
-                // If this is causing your game to quit, you have a bug!
-                frame_validator,
                 force_update_rollbackables,
                 // Make sure to flush everything before Rapier syncs
                 apply_deferred,
@@ -227,7 +215,9 @@ fn main() {
         .add_systems(
             (
                 save_rapier_context, // This must execute after writeback to store the RapierContext
-                apply_deferred,      // Flushing again
+                pause_physics_test,
+                log_end_frame,
+                apply_deferred, // Flushing again
             )
                 .chain()
                 .in_set(ExampleSystemSets::SaveAndChecksum),
