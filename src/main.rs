@@ -132,7 +132,7 @@ fn main() {
     app.add_plugins(GgrsPlugin::<ExampleGgrsConfig>::default())
         .set_rollback_schedule_fps(FPS)
         .add_systems(bevy_ggrs::ReadInputs, input)
-        .rollback_resource_with_reflect::<PhysicsRollbackState>()
+        .rollback_resource_with_clone::<PhysicsRollbackState>()
         .rollback_resource_with_reflect::<CurrentFrame>()
         // Store everything that Rapier updates in its Writeback stage
         .rollback_component_with_reflect::<GlobalTransform>()
@@ -231,10 +231,9 @@ fn main() {
     // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
     app.insert_resource(RapierConfiguration {
         // The timestep_mode MUST be fixed
-        timestep_mode: TimestepMode::Interpolated {
+        timestep_mode: TimestepMode::Fixed {
             dt: 1. / FPS as f32,
             substeps: 1,
-            time_scale: 1.0,
         },
 
         // This should work with gravity, too.  It is fun for testing.
