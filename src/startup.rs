@@ -2,11 +2,8 @@ use crate::prelude::*;
 
 pub fn startup(mut commands: Commands) {
     // frame updating
-    commands.insert_resource(LastFrame::default());
     commands.insert_resource(CurrentSessionFrame::default());
     commands.insert_resource(RollbackStatus::default());
-
-    //commands.insert_resource(WrappedSessionType::default());
 
     // physics toggling
     commands.insert_resource(EnablePhysicsAfter::default());

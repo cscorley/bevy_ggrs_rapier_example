@@ -2,16 +2,11 @@ use bevy_ggrs::{ConfirmedFrameCount, RollbackFrameCount};
 
 use crate::prelude::*;
 
-/// Left outside of the rollback system to detect rollbacks
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Resource, Hash, Reflect)]
-#[reflect(Hash)]
-pub struct LastFrame(pub Frame);
-
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Resource, Hash, Reflect)]
 #[reflect(Hash)]
 pub struct CurrentSessionFrame(pub Frame);
 
-/// Should not be rolled back... obviously?
+/// Left outside of the rollback system to detect rollbacks
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Resource, Hash, Reflect)]
 #[reflect(Hash)]
 pub struct RollbackStatus {
