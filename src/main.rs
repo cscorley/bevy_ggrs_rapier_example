@@ -133,6 +133,7 @@ fn main() {
         .set_rollback_schedule_fps(FPS)
         .add_systems(bevy_ggrs::ReadInputs, input)
         .rollback_resource_with_clone::<PhysicsRollbackState>()
+        .checksum_resource_with_hash::<PhysicsRollbackState>()
         .rollback_resource_with_reflect::<CurrentFrame>()
         // Store everything that Rapier updates in its Writeback stage
         .rollback_component_with_reflect::<GlobalTransform>()
