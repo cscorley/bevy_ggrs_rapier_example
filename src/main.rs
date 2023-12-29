@@ -215,6 +215,7 @@ fn main() {
         .add_systems(
             (
                 save_rapier_context, // This must execute after writeback to store the RapierContext
+                pause_physics_test,
                 log_end_frame,
                 apply_deferred, // Flushing again
             )

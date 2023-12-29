@@ -60,8 +60,25 @@ impl EnablePhysicsAfter {
     }
 }
 
-pub fn toggle_physics(
+pub fn pause_physics_test(
     mut enable_physics_after: ResMut<EnablePhysicsAfter>,
+    current_frame: Res<RollbackFrameCount>,
+) {
+    let current_frame: i32 = (*current_frame).into();
+
+    if current_frame % (FPS as i32 * 2) == 0 {
+        // Disable physics every 30 seconds to test physics pausing and resuming
+        enable_physics_after.update_after_default(current_frame);
+        log::info!(
+            "Physics on frame {:?} {:?}",
+            current_frame,
+            enable_physics_after
+        );
+    }
+}
+
+pub fn toggle_physics(
+    enable_physics_after: Res<EnablePhysicsAfter>,
     current_frame: Res<RollbackFrameCount>,
     mut physics_enabled: ResMut<PhysicsEnabled>,
     mut config: ResMut<RapierConfiguration>,
@@ -73,11 +90,6 @@ pub fn toggle_physics(
         physics_enabled.0,
         enable_physics_after
     );
-
-    if current_frame % (FPS as i32 * 30) == 0 {
-        // Disable physics every 30 seconds to test physics pausing and resuming
-        enable_physics_after.update_after_default(current_frame)
-    }
 
     let should_activate = enable_physics_after.is_enabled(current_frame);
     if physics_enabled.0 != should_activate {
