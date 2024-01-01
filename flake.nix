@@ -15,8 +15,7 @@
         pkgs = import nixpkgs { inherit system overlays; };
         pkgsUnstable = import nixpkgs-unstable { inherit system overlays; };
 
-        # Rust 1.74 is incompatible with bevy_inspector_equi (regression, expected fix in 1.74.1 release)
-        rusts = pkgs.rust-bin.stable."1.73.0".complete.override {
+        rusts = pkgs.rust-bin.stable.latest.complete.override {
           extensions = [ "rust-src" ];
           targets = [ "wasm32-unknown-unknown" ];
         };
