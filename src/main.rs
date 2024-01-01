@@ -21,15 +21,12 @@ mod prelude {
     pub use crate::startup::*;
     pub use bevy::log::*;
     pub use bevy::prelude::*;
-    pub use bevy::tasks::IoTaskPool;
     pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
     pub use bevy_ggrs::prelude::*;
     pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
-    pub use bevy_matchbox::matchbox_socket::WebRtcSocket;
-    pub use bevy_matchbox::prelude::*;
     pub use bevy_rapier2d::prelude::*;
     pub use bytemuck::{Pod, Zeroable};
-    pub use ggrs::{Frame, InputStatus, PlayerHandle, PlayerType, SessionBuilder};
+    pub use ggrs::{Frame, InputStatus, PlayerType, SessionBuilder};
     pub use rand::{thread_rng, Rng};
 
     pub const NUM_PLAYERS: usize = 2;
