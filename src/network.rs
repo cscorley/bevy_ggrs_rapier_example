@@ -6,10 +6,6 @@ use bevy_matchbox::{
 
 use crate::prelude::*;
 
-/// Not necessary for this demo, but useful debug output sometimes.
-#[derive(Resource)]
-pub struct NetworkStatsTimer(pub Timer);
-
 pub fn connect(mut commands: Commands) {
     // Connect immediately.
     // This starts to poll the matchmaking service for our other player to connect.

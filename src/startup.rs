@@ -11,12 +11,6 @@ pub fn startup(mut commands: Commands) {
 
     // random movement for testing
     commands.insert_resource(RandomInput { on: true });
-
-    // network timer
-    commands.insert_resource(NetworkStatsTimer(Timer::from_seconds(
-        2.0,
-        TimerMode::Repeating,
-    )))
 }
 
 pub fn reset_rapier(
