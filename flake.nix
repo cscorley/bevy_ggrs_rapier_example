@@ -2,7 +2,7 @@
   description = "Bevy GGRS Rapier Example";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/23.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/24.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/master";
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
@@ -15,7 +15,7 @@
         pkgs = import nixpkgs { inherit system overlays; };
         pkgsUnstable = import nixpkgs-unstable { inherit system overlays; };
 
-        rusts = pkgs.rust-bin.stable.latest.complete.override {
+        rusts = pkgs.rust-bin.stable."1.80.1".complete.override {
           extensions = [ "rust-src" ];
           targets = [ "wasm32-unknown-unknown" ];
         };

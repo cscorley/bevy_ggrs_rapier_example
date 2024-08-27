@@ -34,17 +34,17 @@ web = ["bevy_ggrs/wasm-bindgen", "ggrs/wasm-bindgen"]
 
 [dependencies]
 # Prefer listing the exact bevy and bevy-adjacent versions here for clarity of what worked
-bevy = "0.12.0"
-bevy-inspector-egui = "0.21.0"
-bevy_framepace = "0.14.1"
-bevy_ggrs = "0.14.0"
-bevy_matchbox = { version = "0.8.0", features = ["ggrs"] }
+bevy = "0.14.1"
+bevy-inspector-egui = "0.25.2"
+bevy_framepace = "0.17.1"
+bevy_ggrs = "0.16.0"
+bevy_matchbox = { version = "0.10.0", features = ["ggrs"] }
 bincode = "1.3"
-bytemuck = { version = "1.13", features = ["derive"] }
-ggrs = { version = "0.10.0", features = ["sync-send"] }
+bytemuck = { version = "1.17", features = ["derive"] }
+ggrs = { version = "0.10.2", features = ["sync-send"] }
 log = "0.4"
 rand = "0.8.5"
-serde = { version = "1.0.192", features = ["serde_derive"] }
+serde = { version = "1.0.209", features = ["serde_derive"] }
 tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 tracing-log = "0.1"
 
@@ -62,7 +62,7 @@ bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "mor
 # use glam ourselves, because we want to force on the libm feature.
 # Unfortunately, we cannot enable the feature via bevy yet, which would be
 # optimal.
-glam = { version = "0.24.1", features = ["libm"] }
+glam = { version = "0.28.0", features = ["libm"] }
 
 # Add our web-only dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
