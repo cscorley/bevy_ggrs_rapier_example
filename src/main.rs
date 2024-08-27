@@ -89,7 +89,7 @@ fn main() {
     // Having 100+ entities ready to spawn will cause bevy_rapier to receive
     // components out-of-order.  This is good for testing desync on frame 1!
     let _ = app
-        .world
+        .world_mut()
         .spawn_batch((0..101).map(DeterministicSpawnBundle::new))
         .collect::<Vec<Entity>>();
 
@@ -122,7 +122,7 @@ fn main() {
         .add_systems(Startup, respawn_all)
         .add_systems(Startup, connect)
         .add_systems(Update, toggle_random_input)
-        .add_systems(Update, bevy::window::close_on_esc)
+        .add_systems(Update, close_on_esc)
         .add_systems(Update, update_matchbox_socket)
         .add_systems(Update, handle_p2p_events);
 
@@ -224,33 +224,31 @@ fn main() {
     app.add_plugins(
         RapierPhysicsPlugin::<NoUserData>::default()
             // The physics scale really should not matter for a game of this size
-            .with_physics_scale(1.)
+            .with_length_unit(1.)
             // This allows us to hook in the systems ourselves above in the GGRS schedule
             .with_default_system_setup(false),
     );
 
     // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
-    app.insert_resource(RapierConfiguration {
-        // The timestep_mode MUST be fixed
-        timestep_mode: TimestepMode::Fixed {
-            dt: 1. / FPS as f32,
-            substeps: 1,
-        },
+    let mut rapier_config = RapierConfiguration::new(1.);
+    // The timestep_mode MUST be fixed
+    rapier_config.timestep_mode = TimestepMode::Fixed {
+        dt: 1. / FPS as f32,
+        substeps: 1,
+    };
+    // This should work with gravity, too.  It is fun for testing.
+    // rapier_config.gravity = Vec2::ZERO;
 
-        // This should work with gravity, too.  It is fun for testing.
-        // gravity: Vec2::ZERO,
+    // Turn off query pipeline since this example does not use it
+    rapier_config.query_pipeline_active = false;
 
-        // Turn off query pipeline since this example does not use it
-        query_pipeline_active: false,
+    // Turn off query pipeline since this example does not use it
+    rapier_config.physics_pipeline_active = false;
 
-        // We will turn this on after "loading", this helps when looking at init issues
-        physics_pipeline_active: false,
+    // Do not check internal structures for transform changes
+    rapier_config.force_update_from_transform_changes = true;
 
-        // Do not check internal structures for transform changes
-        force_update_from_transform_changes: true,
-
-        ..default()
-    });
+    app.insert_resource(rapier_config);
 
     // We don't really draw anything ourselves, just show us the raw physics colliders
     app.add_plugins(RapierDebugRenderPlugin {
@@ -271,4 +269,20 @@ fn main() {
     .add_plugins(FramepacePlugin);
 
     app.run();
+}
+
+pub fn close_on_esc(
+    mut commands: Commands,
+    focused_windows: Query<(Entity, &Window)>,
+    input: Res<ButtonInput<KeyCode>>,
+) {
+    for (window, focus) in focused_windows.iter() {
+        if !focus.focused {
+            continue;
+        }
+
+        if input.just_pressed(KeyCode::Escape) {
+            commands.entity(window).despawn();
+        }
+    }
 }

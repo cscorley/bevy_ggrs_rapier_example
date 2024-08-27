@@ -30,7 +30,7 @@ pub struct GGRSInput {
 pub fn input(
     mut commands: Commands,
     local_players: Res<LocalPlayers>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut random: ResMut<RandomInput>,
     physics_enabled: Res<PhysicsEnabled>,
 ) {
@@ -42,16 +42,16 @@ pub fn input(
         // Do not do anything until physics are live
         if physics_enabled.0 {
             // Build the input
-            if keyboard_input.pressed(KeyCode::W) {
+            if keyboard_input.pressed(KeyCode::KeyW) {
                 input |= INPUT_UP;
             }
-            if keyboard_input.pressed(KeyCode::A) {
+            if keyboard_input.pressed(KeyCode::KeyA) {
                 input |= INPUT_LEFT;
             }
-            if keyboard_input.pressed(KeyCode::S) {
+            if keyboard_input.pressed(KeyCode::KeyS) {
                 input |= INPUT_DOWN;
             }
-            if keyboard_input.pressed(KeyCode::D) {
+            if keyboard_input.pressed(KeyCode::KeyD) {
                 input |= INPUT_RIGHT;
             }
 
