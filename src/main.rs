@@ -134,11 +134,12 @@ fn main() {
         //.checksum_resource_with_hash::<PhysicsRollbackState>()
         //.rollback_resource_with_clone::<PhysicsRollbackState>()
         // Store everything that Rapier updates in its Writeback stage
-        .rollback_component_with_reflect::<GlobalTransform>()
-        .rollback_component_with_reflect::<Transform>() // TODO: perhaps this could be with_clone now
-        .rollback_component_with_reflect::<LinearVelocity>()
-        .rollback_component_with_reflect::<AngularVelocity>()
-        .rollback_component_with_reflect::<Sleeping>()
+        //.checksum_component::<Transform>(|t| t.translation.x as u64)
+        .rollback_component_with_copy::<GlobalTransform>()
+        .rollback_component_with_copy::<Transform>()
+        .rollback_component_with_copy::<LinearVelocity>()
+        .rollback_component_with_copy::<AngularVelocity>()
+        .rollback_component_with_copy::<Sleeping>()
         // Game stuff
         .rollback_resource_with_reflect::<EnablePhysicsAfter>();
 
@@ -147,85 +148,60 @@ fn main() {
     app.get_schedule_mut(bevy_ggrs::GgrsSchedule)
         .unwrap() // We just configured the plugin -- this is probably fine
         // remove ambiguity detection, which doesn't work with Rapier https://github.com/dimforge/bevy_rapier/issues/356#issuecomment-1587045134
-        .set_build_settings(ScheduleBuildSettings::default())
-        .configure_sets(
-            (
-                // It is imperative that this executes first, always.
-                // I'm putting this here in case you end up adding any `Commands` to this step,
-                // which I think must flush at all costs before we enter the regular game logic
-                ExampleSystemSets::Rollback,
-                // Add our game logic and systems here.  If it impacts what the
-                // physics engine should consider, do it here.
-                ExampleSystemSets::Game,
-                // The next 4 stages are all bevy_rapier stages.  Best to leave these in order.
-                // This is setup to execute exactly how the plugin would execute if we were to use
-                // with_default_system_setup(true) instead (the plugin is configured next)
-                PhysicsSet::Prepare,
-                PhysicsSet::StepSimulation,
-                PhysicsSet::Sync,
-                // This must execute after writeback to store the RapierContext
-                ExampleSystemSets::SaveAndChecksum,
-            )
-                .chain(),
-        )
-        .add_systems(
-            (
-                log_start_frame,
-                update_current_session_frame,
-                log_confirmed_frame,
-                // the three above must actually come before we update rollback status
-                update_rollback_status,
-                // these three must actually come after we update rollback status
-                toggle_physics,
-                //rollback_rapier_context,
-                // Make sure to flush everything before we apply our game logic.
-                apply_deferred,
-            )
-                // There is a bit more specific ordering you can do with these
-                // systems, but since GGRS configures it's schedule to require
-                // absolute unambiguous systems, I'm just going to take the lazy
-                // way out and `chain` them in order.
-                .chain()
-                .in_set(ExampleSystemSets::Rollback),
-        )
-        .add_systems(
-            (
-                apply_inputs,
-                force_update_rollbackables,
-                // Make sure to flush everything before Rapier syncs
-                apply_deferred,
-            )
-                .chain()
-                .in_set(ExampleSystemSets::Game),
-        )
-        /*
-        .add_systems(
-            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
-                .in_set(PhysicsSet::SyncBackend),
-        )
-        .add_systems(
-            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
-                .in_set(PhysicsSet::StepSimulation),
-        )
-        .add_systems(
-            RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
-                .in_set(PhysicsSet::Writeback),
-        )
-        */
-        .add_systems(
-            (
-                //save_rapier_context, // This must execute after writeback to store the RapierContext
-                pause_physics_test,
-                log_end_frame,
-                apply_deferred, // Flushing again
-            )
-                .chain()
-                .in_set(ExampleSystemSets::SaveAndChecksum),
-        );
+        .set_build_settings(ScheduleBuildSettings::default());
+
 
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugins(PhysicsPlugins::new(bevy_ggrs::GgrsSchedule))
-        .insert_resource(Time::new_with(Physics::fixed_hz(FPS as f64)));
+        .insert_resource(Time::new_with(Physics::fixed_hz(60.)));
+
+    app.add_systems(
+        bevy_ggrs::GgrsSchedule,
+        (
+            log_start_frame,
+            update_current_session_frame,
+            log_confirmed_frame,
+            // the three above must actually come before we update rollback status
+            update_rollback_status,
+            // these three must actually come after we update rollback status
+            toggle_physics,
+            //rollback_rapier_context,
+            // Make sure to flush everything before we apply our game logic.
+            apply_inputs,
+            force_update_rollbackables,
+            // Make sure to flush everything before Rapier syncs
+            apply_deferred,
+        )
+            .chain()
+            .before(PhysicsSet::Prepare),
+    );
+    /*
+    .add_systems(
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
+            .in_set(PhysicsSet::SyncBackend),
+    )
+    .add_systems(
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
+            .in_set(PhysicsSet::StepSimulation),
+    )
+    .add_systems(
+        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
+            .in_set(PhysicsSet::Writeback),
+    )
+    */
+    /*
+           app
+           .add_systems(
+               (
+                   //save_rapier_context, // This must execute after writeback to store the RapierContext
+                   pause_physics_test,
+                   log_end_frame,
+                   apply_deferred, // Flushing again
+               )
+                   .chain()
+                   .in_set(ExampleSystemSets::SaveAndChecksum),
+           ) ;
+    */
 
     /*
        // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
