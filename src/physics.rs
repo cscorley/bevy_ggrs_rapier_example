@@ -81,7 +81,7 @@ pub fn toggle_physics(
     enable_physics_after: Res<EnablePhysicsAfter>,
     current_frame: Res<RollbackFrameCount>,
     mut physics_enabled: ResMut<PhysicsEnabled>,
-    mut config: ResMut<RapierConfiguration>,
+    mut time: ResMut<Time<Physics>>,
 ) {
     let current_frame: i32 = (*current_frame).into();
     log::info!(
@@ -102,9 +102,14 @@ pub fn toggle_physics(
         physics_enabled.0 = should_activate;
     }
 
-    config.physics_pipeline_active = physics_enabled.0;
+    if physics_enabled.0 {
+        time.unpause();
+    } else {
+        time.pause();
+    }
 }
 
+/*
 pub fn rollback_rapier_context(
     rollback_status: Res<RollbackStatus>,
     game_state: Res<PhysicsRollbackState>,
@@ -195,3 +200,4 @@ pub fn save_rapier_context(
         );
     }
 }
+ */

@@ -19,12 +19,12 @@ mod prelude {
     pub use crate::rollback::*;
     pub use crate::spawn::*;
     pub use crate::startup::*;
+    pub use avian2d::prelude::*;
     pub use bevy::log::*;
     pub use bevy::prelude::*;
     pub use bevy_framepace::{FramepacePlugin, FramepaceSettings, Limiter};
     pub use bevy_ggrs::prelude::*;
     pub use bevy_inspector_egui::quick::WorldInspectorPlugin;
-    pub use bevy_rapier2d::prelude::*;
     pub use bytemuck::{Pod, Zeroable};
     pub use ggrs::{Frame, InputStatus, PlayerType, SessionBuilder};
     pub use rand::{thread_rng, Rng};
@@ -118,7 +118,7 @@ fn main() {
         // Add our own log plugin to help with comparing desync output
         .add_plugins(log_plugin::LogPlugin)
         .add_systems(Startup, startup)
-        .add_systems(Startup, reset_rapier)
+        //.add_systems(Startup, reset_rapier)
         .add_systems(Startup, respawn_all)
         .add_systems(Startup, connect)
         .add_systems(Update, toggle_random_input)
@@ -136,7 +136,8 @@ fn main() {
         // Store everything that Rapier updates in its Writeback stage
         .rollback_component_with_reflect::<GlobalTransform>()
         .rollback_component_with_reflect::<Transform>()
-        .rollback_component_with_reflect::<Velocity>()
+        .rollback_component_with_reflect::<LinearVelocity>()
+        .rollback_component_with_reflect::<AngularVelocity>()
         .rollback_component_with_reflect::<Sleeping>()
         // Game stuff
         .rollback_resource_with_reflect::<EnablePhysicsAfter>();
@@ -159,9 +160,9 @@ fn main() {
                 // The next 4 stages are all bevy_rapier stages.  Best to leave these in order.
                 // This is setup to execute exactly how the plugin would execute if we were to use
                 // with_default_system_setup(true) instead (the plugin is configured next)
-                PhysicsSet::SyncBackend,
+                PhysicsSet::Prepare,
                 PhysicsSet::StepSimulation,
-                PhysicsSet::Writeback,
+                PhysicsSet::Sync,
                 // This must execute after writeback to store the RapierContext
                 ExampleSystemSets::SaveAndChecksum,
             )
@@ -176,7 +177,7 @@ fn main() {
                 update_rollback_status,
                 // these three must actually come after we update rollback status
                 toggle_physics,
-                rollback_rapier_context,
+                //rollback_rapier_context,
                 // Make sure to flush everything before we apply our game logic.
                 apply_deferred,
             )
@@ -197,6 +198,7 @@ fn main() {
                 .chain()
                 .in_set(ExampleSystemSets::Game),
         )
+        /*
         .add_systems(
             RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
                 .in_set(PhysicsSet::SyncBackend),
@@ -209,9 +211,10 @@ fn main() {
             RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
                 .in_set(PhysicsSet::Writeback),
         )
+        */
         .add_systems(
             (
-                save_rapier_context, // This must execute after writeback to store the RapierContext
+                //save_rapier_context, // This must execute after writeback to store the RapierContext
                 pause_physics_test,
                 log_end_frame,
                 apply_deferred, // Flushing again
@@ -222,40 +225,35 @@ fn main() {
 
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugins(
-        RapierPhysicsPlugin::<NoUserData>::default()
-            // The physics scale really should not matter for a game of this size
-            .with_length_unit(1.)
-            // This allows us to hook in the systems ourselves above in the GGRS schedule
-            .with_default_system_setup(false),
+        PhysicsPlugins::default(), //FixedUpdate
     );
 
-    // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
-    let mut rapier_config = RapierConfiguration::new(1.);
-    // The timestep_mode MUST be fixed
-    rapier_config.timestep_mode = TimestepMode::Fixed {
-        dt: 1. / FPS as f32,
-        substeps: 1,
-    };
-    // This should work with gravity, too.  It is fun for testing.
-    // rapier_config.gravity = Vec2::ZERO;
+    /*
+       // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
+       let mut rapier_config = RapierConfiguration::new(1.);
+       // The timestep_mode MUST be fixed
+       rapier_config.timestep_mode = TimestepMode::Fixed {
+           dt: 1. / FPS as f32,
+           substeps: 1,
+       };
+       // This should work with gravity, too.  It is fun for testing.
+       // rapier_config.gravity = Vec2::ZERO;
 
-    // Turn off query pipeline since this example does not use it
-    rapier_config.query_pipeline_active = false;
+       // Turn off query pipeline since this example does not use it
+       rapier_config.query_pipeline_active = false;
 
-    // Turn off query pipeline since this example does not use it
-    rapier_config.physics_pipeline_active = false;
+       // Turn off query pipeline since this example does not use it
+       rapier_config.physics_pipeline_active = false;
 
-    // Do not check internal structures for transform changes
-    rapier_config.force_update_from_transform_changes = true;
+       // Do not check internal structures for transform changes
+       rapier_config.force_update_from_transform_changes = true;
 
-    app.insert_resource(rapier_config);
+       app.insert_resource(rapier_config);
+    */
 
     // We don't really draw anything ourselves, just show us the raw physics colliders
-    app.add_plugins(RapierDebugRenderPlugin {
-        enabled: true,
-        ..default()
-    })
-    .add_plugins(WorldInspectorPlugin::new());
+    app.add_plugins(PhysicsDebugPlugin::default())
+        .add_plugins(WorldInspectorPlugin::new());
 
     // I have found that since GGRS is limiting the movement FPS anyway,
     // there isn't much of a point in rendering more frames than necessary.

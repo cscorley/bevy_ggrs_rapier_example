@@ -79,7 +79,7 @@ pub fn input(
 }
 
 pub fn apply_inputs(
-    mut query: Query<(&mut Velocity, &Player)>,
+    mut query: Query<(&mut LinearVelocity, &Player)>,
     inputs: Res<PlayerInputs<ExampleGgrsConfig>>,
     physics_enabled: Res<PhysicsEnabled>,
 ) {
@@ -129,33 +129,37 @@ pub fn apply_inputs(
         };
 
         let new_vel_x = if horizontal != 0. {
-            v.linvel.x + horizontal * 10.0
+            v.x + horizontal * 10.0
         } else {
             0.
         };
 
         let new_vel_y = if vertical != 0. {
-            v.linvel.y + vertical * 10.0
+            v.y + vertical * 10.0
         } else {
             0.
         };
 
         // This is annoying but we have to make sure we only trigger an update in Rapier when explicitly necessary!
-        if new_vel_x != v.linvel.x || new_vel_y != v.linvel.y {
-            v.linvel.x = new_vel_x;
-            v.linvel.y = new_vel_y;
+        if new_vel_x != v.x || new_vel_y != v.y {
+            v.x = new_vel_x;
+            v.y = new_vel_y;
         }
     }
 }
 
 pub fn force_update_rollbackables(
     mut t_query: Query<&mut Transform, With<Rollback>>,
-    mut v_query: Query<&mut Velocity, With<Rollback>>,
+    mut v_query: Query<&mut LinearVelocity, With<Rollback>>,
+    mut a_query: Query<&mut AngularVelocity, With<Rollback>>,
 ) {
     for mut t in t_query.iter_mut() {
         t.set_changed();
     }
     for mut v in v_query.iter_mut() {
         v.set_changed();
+    }
+    for mut a in a_query.iter_mut() {
+        a.set_changed();
     }
 }

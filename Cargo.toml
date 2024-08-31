@@ -34,9 +34,10 @@ web = ["bevy_ggrs/wasm-bindgen", "ggrs/wasm-bindgen"]
 
 [dependencies]
 # Prefer listing the exact bevy and bevy-adjacent versions here for clarity of what worked
+avian2d = { version = "0.1.2", features = ["debug-plugin", "enhanced-determinism"] } # TODO: serialize perhaps?
 bevy = "0.14.1"
 # Enable libm in glam dependency for https://github.com/cscorley/bevy_ggrs_rapier_example/issues/22
-bevy_math = { version = "0.14.1", features = ["libm"] } 
+bevy_math = { version = "0.14.1", features = ["libm"] }
 bevy-inspector-egui = "0.25.2"
 bevy_framepace = "0.17.1"
 bevy_ggrs = "0.16.0"

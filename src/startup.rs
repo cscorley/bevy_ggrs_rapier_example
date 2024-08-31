@@ -13,6 +13,7 @@ pub fn startup(mut commands: Commands) {
     commands.insert_resource(RandomInput { on: true });
 }
 
+/*
 pub fn reset_rapier(
     mut commands: Commands,
     mut rapier: ResMut<RapierContext>,
@@ -64,7 +65,7 @@ pub fn reset_rapier(
     } else {
         commands.insert_resource(PhysicsRollbackState::default());
     }
-}
+} */
 
 pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &DeterministicSpawn)>) {
     commands.spawn(Camera2dBundle::default());
@@ -87,9 +88,9 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ball"))
         .insert(DynamicColliderBundle {
-            collider: Collider::ball(4.),
-            restitution: Restitution::coefficient(2.0),
-            ccd: Ccd::enabled(),
+            collider: Collider::circle(4.),
+            restitution: Restitution::new(2.0),
+            //ccd: Ccd::enabled(),
             ..default()
         })
         .insert(TransformBundle {
@@ -103,7 +104,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .insert(Name::new("Player 1"))
         .insert(Player { handle: 0 })
         .insert(DynamicColliderBundle {
-            collider: Collider::cuboid(8., 8.),
+            collider: Collider::rectangle(8., 8.),
             locked_axes: LockedAxes::ROTATION_LOCKED,
             ..default()
         })
@@ -118,7 +119,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .insert(Name::new("Player 2"))
         .insert(Player { handle: 1 })
         .insert(DynamicColliderBundle {
-            collider: Collider::cuboid(8., 8.),
+            collider: Collider::rectangle(8., 8.),
             locked_axes: LockedAxes::ROTATION_LOCKED,
             ..default()
         })
@@ -136,7 +137,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Floor"))
         .insert(FixedColliderBundle {
-            collider: Collider::cuboid(overlapping_box_length, thickness),
+            collider: Collider::rectangle(overlapping_box_length, thickness),
             ..default()
         })
         .insert(TransformBundle {
@@ -148,7 +149,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Left Wall"))
         .insert(FixedColliderBundle {
-            collider: Collider::cuboid(thickness, overlapping_box_length),
+            collider: Collider::rectangle(thickness, overlapping_box_length),
             ..default()
         })
         .insert(TransformBundle {
@@ -160,7 +161,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Right Wall"))
         .insert(FixedColliderBundle {
-            collider: Collider::cuboid(thickness, overlapping_box_length),
+            collider: Collider::rectangle(thickness, overlapping_box_length),
             ..default()
         })
         .insert(TransformBundle {
@@ -172,7 +173,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Ceiling"))
         .insert(FixedColliderBundle {
-            collider: Collider::cuboid(overlapping_box_length, thickness),
+            collider: Collider::rectangle(overlapping_box_length, thickness),
             ..default()
         })
         .insert(TransformBundle {
@@ -185,12 +186,11 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Southeast Corner"))
         .insert(FixedColliderBundle {
-            collider: Collider::convex_hull(&[
+            collider: Collider::triangle(
                 Vec2::new(0., 0.),
                 Vec2::new(-thickness * 2., 0.),
                 Vec2::new(0., thickness * 2.),
-            ])
-            .unwrap(),
+            ),
             ..default()
         })
         .insert(TransformBundle {
@@ -202,12 +202,11 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Southwest Corner"))
         .insert(FixedColliderBundle {
-            collider: Collider::convex_hull(&[
+            collider: Collider::triangle(
                 Vec2::new(0., 0.),
                 Vec2::new(thickness * 2., 0.),
                 Vec2::new(0., thickness * 2.),
-            ])
-            .unwrap(),
+            ),
             ..default()
         })
         .insert(TransformBundle {
@@ -219,12 +218,11 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Northeast Corner"))
         .insert(FixedColliderBundle {
-            collider: Collider::convex_hull(&[
+            collider: Collider::triangle(
                 Vec2::new(0., 0.),
                 Vec2::new(-thickness * 2., 0.),
                 Vec2::new(0., -thickness * 2.),
-            ])
-            .unwrap(),
+            ),
             ..default()
         })
         .insert(TransformBundle {
@@ -236,12 +234,11 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Northwest Corner"))
         .insert(FixedColliderBundle {
-            collider: Collider::convex_hull(&[
+            collider: Collider::triangle(
                 Vec2::new(0., 0.),
                 Vec2::new(thickness * 2., 0.),
                 Vec2::new(0., -thickness * 2.),
-            ])
-            .unwrap(),
+            ),
             ..default()
         })
         .insert(TransformBundle {
