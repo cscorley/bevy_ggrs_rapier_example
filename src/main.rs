@@ -131,11 +131,11 @@ fn main() {
         .add_systems(bevy_ggrs::ReadInputs, input)
         // We must add a specific checksum check for everything we want to include in desync detection.
         // It is probably OK to just check the components, but for demo purposes let's make sure Rapier always agrees.
-        .checksum_resource_with_hash::<PhysicsRollbackState>()
-        .rollback_resource_with_clone::<PhysicsRollbackState>()
+        //.checksum_resource_with_hash::<PhysicsRollbackState>()
+        //.rollback_resource_with_clone::<PhysicsRollbackState>()
         // Store everything that Rapier updates in its Writeback stage
         .rollback_component_with_reflect::<GlobalTransform>()
-        .rollback_component_with_reflect::<Transform>()
+        .rollback_component_with_reflect::<Transform>() // TODO: perhaps this could be with_clone now
         .rollback_component_with_reflect::<LinearVelocity>()
         .rollback_component_with_reflect::<AngularVelocity>()
         .rollback_component_with_reflect::<Sleeping>()
@@ -224,9 +224,8 @@ fn main() {
         );
 
     // Configure plugin without system setup, otherwise your simulation will run twice
-    app.add_plugins(
-        PhysicsPlugins::default(), //FixedUpdate
-    );
+    app.add_plugins(PhysicsPlugins::new(bevy_ggrs::GgrsSchedule))
+        .insert_resource(Time::new_with(Physics::fixed_hz(FPS as f64)));
 
     /*
        // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
