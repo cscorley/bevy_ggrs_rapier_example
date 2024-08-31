@@ -150,7 +150,6 @@ fn main() {
         // remove ambiguity detection, which doesn't work with Rapier https://github.com/dimforge/bevy_rapier/issues/356#issuecomment-1587045134
         .set_build_settings(ScheduleBuildSettings::default());
 
-
     // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugins(PhysicsPlugins::new(bevy_ggrs::GgrsSchedule))
         .insert_resource(Time::new_with(Physics::fixed_hz(60.)));
@@ -175,33 +174,17 @@ fn main() {
             .chain()
             .before(PhysicsSet::Prepare),
     );
-    /*
-    .add_systems(
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::SyncBackend)
-            .in_set(PhysicsSet::SyncBackend),
-    )
-    .add_systems(
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::StepSimulation)
-            .in_set(PhysicsSet::StepSimulation),
-    )
-    .add_systems(
-        RapierPhysicsPlugin::<NoUserData>::get_systems(PhysicsSet::Writeback)
-            .in_set(PhysicsSet::Writeback),
-    )
-    */
-    /*
-           app
-           .add_systems(
-               (
-                   //save_rapier_context, // This must execute after writeback to store the RapierContext
-                   pause_physics_test,
-                   log_end_frame,
-                   apply_deferred, // Flushing again
-               )
-                   .chain()
-                   .in_set(ExampleSystemSets::SaveAndChecksum),
-           ) ;
-    */
+    app.add_systems(
+        bevy_ggrs::GgrsSchedule,
+        (
+            //save_rapier_context, // This must execute after writeback to store the RapierContext
+            pause_physics_test,
+            log_end_frame,
+            apply_deferred, // Flushing again
+        )
+            .chain()
+            .after(PhysicsSet::Sync),
+    );
 
     /*
        // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
