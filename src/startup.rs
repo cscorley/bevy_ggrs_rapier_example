@@ -104,7 +104,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .insert(Name::new("Player 1"))
         .insert(Player { handle: 0 })
         .insert(DynamicColliderBundle {
-            collider: Collider::rectangle(8., 8.),
+            collider: Collider::rectangle(16., 16.),
             locked_axes: LockedAxes::ROTATION_LOCKED,
             ..default()
         })
@@ -119,7 +119,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
         .insert(Name::new("Player 2"))
         .insert(Player { handle: 1 })
         .insert(DynamicColliderBundle {
-            collider: Collider::rectangle(8., 8.),
+            collider: Collider::rectangle(16., 16.),
             locked_axes: LockedAxes::ROTATION_LOCKED,
             ..default()
         })
@@ -141,7 +141,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
             ..default()
         })
         .insert(TransformBundle {
-            local: Transform::from_xyz(0., -box_length, 0.),
+            local: Transform::from_xyz(0., -box_length / 2., 0.),
             ..default()
         });
 
@@ -153,7 +153,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
             ..default()
         })
         .insert(TransformBundle {
-            local: Transform::from_xyz(-box_length, 0., 0.),
+            local: Transform::from_xyz(-box_length / 2., 0., 0.),
             ..default()
         });
 
@@ -165,7 +165,7 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
             ..default()
         })
         .insert(TransformBundle {
-            local: Transform::from_xyz(box_length, 0., 0.),
+            local: Transform::from_xyz(box_length / 2., 0., 0.),
             ..default()
         });
 
@@ -177,11 +177,11 @@ pub fn respawn_all(mut commands: Commands, spawn_pool: Query<(Entity, &Determini
             ..default()
         })
         .insert(TransformBundle {
-            local: Transform::from_xyz(0., box_length, 0.),
+            local: Transform::from_xyz(0., box_length / 2., 0.),
             ..default()
         });
 
-    let corner_position = box_length - thickness + 4.;
+    let corner_position = box_length / 2.;
     commands
         .entity(sorted_entity_pool.pop().unwrap())
         .insert(Name::new("Southeast Corner"))
