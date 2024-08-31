@@ -29,12 +29,12 @@ lto = "fat"
 codegen-units = 1
 
 [features]
-default = []
 web = ["bevy_ggrs/wasm-bindgen", "ggrs/wasm-bindgen"]
 
 [dependencies]
 # Prefer listing the exact bevy and bevy-adjacent versions here for clarity of what worked
 bevy = "0.14.1"
+bevy_math = { version = "0.14.1", features = ["libm"] } # Enable libm in glam dependency
 bevy-inspector-egui = "0.25.2"
 bevy_framepace = "0.17.1"
 bevy_ggrs = "0.16.0"
@@ -55,14 +55,6 @@ bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "mor
     "enhanced-determinism",
     "serde-serialize",
 ] }
-
-# Overriding glam for # https://github.com/cscorley/bevy_ggrs_rapier_example/issues/22
-# We have this here so we can explicitly declare the libm feature to ensure it's
-# enabled.  We still want to have this direct dependency, even though we don't
-# use glam ourselves, because we want to force on the libm feature.
-# Unfortunately, we cannot enable the feature via bevy yet, which would be
-# optimal.
-glam = { version = "0.28.0", features = ["libm"] }
 
 # Add our web-only dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
