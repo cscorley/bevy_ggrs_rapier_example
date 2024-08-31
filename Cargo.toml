@@ -29,6 +29,7 @@ lto = "fat"
 codegen-units = 1
 
 [features]
+default = []
 web = ["bevy_ggrs/wasm-bindgen", "ggrs/wasm-bindgen"]
 
 [dependencies]
