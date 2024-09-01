@@ -143,9 +143,9 @@ pub fn apply_inputs(
         };
 
         // This is annoying but we have to make sure we only trigger an update in Rapier when explicitly necessary!
-        if new_vel_x != v.x || new_vel_y != v.y {
-            v.x = new_vel_x;
-            v.y = new_vel_y;
-        }
+        //if new_vel_x != v.x || new_vel_y != v.y {
+        v.x = new_vel_x;
+        v.y = new_vel_y;
+        //}
     }
 }
