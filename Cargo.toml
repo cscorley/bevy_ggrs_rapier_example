@@ -30,7 +30,7 @@ codegen-units = 1
 
 [features]
 default = []
-web = ["bevy_ggrs/wasm-bindgen", "ggrs/wasm-bindgen"]
+web = ["bevy_ggrs/wasm-bindgen"]
 
 [dependencies]
 # Prefer listing the exact bevy and bevy-adjacent versions here for clarity of what worked
@@ -51,10 +51,11 @@ bevy = "0.14.1"
 # bevy_math = { version = "0.14.1", features = ["libm"] }
 bevy-inspector-egui = "0.25.2"
 bevy_framepace = "0.17.1"
-bevy_ggrs = "0.16.0"
+# bevy_ggrs = "0.16.0"
+bevy_ggrs = { path = "../bevy_ggrs" }
 bevy_matchbox = { version = "0.10.0", features = ["ggrs"] }
 bytemuck = { version = "1.17.1", features = ["derive"] }
-ggrs = { version = "0.10.2", features = ["sync-send"] }
+#ggrs = { version = "0.10.2", features = ["sync-send"] }
 log = "0.4"
 rand = "0.8.5"
 tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }

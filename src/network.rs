@@ -51,7 +51,7 @@ pub fn update_matchbox_socket(
         // in between rollbacks and that can lead to more inaccuracies building
         // up over time.
         .with_sparse_saving_mode(false)
-        .with_desync_detection_mode(ggrs::DesyncDetection::On { interval: 1 });
+        .with_desync_detection_mode(bevy_ggrs::ggrs::DesyncDetection::On { interval: 1 });
 
     // add players
     let players = socket.players();
