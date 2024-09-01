@@ -226,11 +226,7 @@ fn main() {
             update_rollback_status,
             // these three must actually come after we update rollback status
             toggle_physics,
-            //rollback_rapier_context,
-            // Make sure to flush everything before we apply our game logic.
             apply_inputs,
-            force_update_rollbackables,
-            // Make sure to flush everything before Rapier syncs
             apply_deferred,
         )
             .chain()
@@ -239,7 +235,6 @@ fn main() {
     app.add_systems(
         bevy_ggrs::GgrsSchedule,
         (
-            //save_rapier_context, // This must execute after writeback to store the RapierContext
             pause_physics_test,
             log_end_frame,
             apply_deferred, // Flushing again

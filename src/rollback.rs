@@ -32,7 +32,7 @@ pub fn input(
     local_players: Res<LocalPlayers>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut random: ResMut<RandomInput>,
-    physics_enabled: Res<PhysicsEnabled>,
+    time: Res<Time<Physics>>,
 ) {
     let mut local_inputs = HashMap::new();
 
@@ -40,7 +40,7 @@ pub fn input(
         let mut input: u16 = 0;
 
         // Do not do anything until physics are live
-        if physics_enabled.0 {
+        if !time.is_paused() {
             // Build the input
             if keyboard_input.pressed(KeyCode::KeyW) {
                 input |= INPUT_UP;
@@ -81,7 +81,7 @@ pub fn input(
 pub fn apply_inputs(
     mut query: Query<(&mut LinearVelocity, &Player)>,
     inputs: Res<PlayerInputs<ExampleGgrsConfig>>,
-    physics_enabled: Res<PhysicsEnabled>,
+    time: Res<Time<Physics>>,
 ) {
     for (mut v, p) in query.iter_mut() {
         let (game_input, input_status) = inputs[p.handle];
@@ -98,7 +98,7 @@ pub fn apply_inputs(
 
         // Do not do anything until physics are live
         // This is a poor mans emulation to stop accidentally tripping velocity updates
-        if !physics_enabled.0 {
+        if time.is_paused() {
             continue;
         }
 
@@ -145,21 +145,5 @@ pub fn apply_inputs(
             v.x = new_vel_x;
             v.y = new_vel_y;
         }
-    }
-}
-
-pub fn force_update_rollbackables(
-    mut t_query: Query<&mut Transform, With<Rollback>>,
-    mut v_query: Query<&mut LinearVelocity, With<Rollback>>,
-    mut a_query: Query<&mut AngularVelocity, With<Rollback>>,
-) {
-    for mut t in t_query.iter_mut() {
-        t.set_changed();
-    }
-    for mut v in v_query.iter_mut() {
-        v.set_changed();
-    }
-    for mut a in a_query.iter_mut() {
-        a.set_changed();
     }
 }

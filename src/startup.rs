@@ -7,7 +7,6 @@ pub fn startup(mut commands: Commands) {
 
     // physics toggling
     commands.insert_resource(EnablePhysicsAfter::default());
-    commands.insert_resource(PhysicsEnabled::default());
 
     // random movement for testing
     commands.insert_resource(RandomInput { on: true });
