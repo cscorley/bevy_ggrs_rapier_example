@@ -1037,7 +1037,6 @@ dependencies = [
  "bevy_framepace",
  "bevy_ggrs",
  "bevy_matchbox",
- "bevy_math",
  "bytemuck",
  "console_error_panic_hook",
  "ggrs",

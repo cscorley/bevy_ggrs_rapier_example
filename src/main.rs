@@ -134,7 +134,7 @@ fn main() {
         //.checksum_resource_with_hash::<PhysicsRollbackState>()
         //.rollback_resource_with_clone::<PhysicsRollbackState>()
         // Store everything that Rapier updates in its Writeback stage
-        //.checksum_component::<Transform>(|t| t.translation.x as u64)
+        .checksum_component::<Transform>(|t| t.translation.x as u64)
         .rollback_component_with_copy::<GlobalTransform>()
         .rollback_component_with_copy::<Transform>()
         .rollback_component_with_copy::<LinearVelocity>()
