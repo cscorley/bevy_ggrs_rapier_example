@@ -60,13 +60,6 @@ mod prelude {
     // TODO: Maybe update this room name (bevy-ggrs-rapier-example) so we don't test with each other :-)
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-enum ExampleSystemSets {
-    Rollback,
-    Game,
-    SaveAndChecksum,
-}
-
 use bevy::ecs::schedule::ScheduleBuildSettings;
 use bevy_ggrs::{GgrsApp, GgrsPlugin};
 
@@ -90,7 +83,9 @@ fn main() {
     // components out-of-order.  This is good for testing desync on frame 1!
     let _ = app
         .world_mut()
-        .spawn_batch((0..101).map(DeterministicSpawnBundle::new))
+        //.spawn_batch((0..101).map(DeterministicSpawnBundle::new))
+        // TODO:  restore big entity spawn for testing, but for now use 10 to debug
+        .spawn_batch((0..11).map(DeterministicSpawnBundle::new))
         .collect::<Vec<Entity>>();
 
     // Something smaller so we can put these side by side
@@ -261,17 +256,17 @@ fn main() {
 
     app.add_plugins(WorldInspectorPlugin::new());
 
+    // I have found that since GGRS is limiting the movement FPS anyway,
+    // there isn't much of a point in rendering more frames than necessary.
+    // One thing I've yet to prove out is if this is actually detrimental or
+    // not to resimulation, since we're basically taking up time that GGRS
+    // would use already to pace itself.
+    // You may find this useless, or bad.  Submit a PR if it is!
     /*
-       // I have found that since GGRS is limiting the movement FPS anyway,
-       // there isn't much of a point in rendering more frames than necessary.
-       // One thing I've yet to prove out is if this is actually detrimental or
-       // not to resimulation, since we're basically taking up time that GGRS
-       // would use already to pace itself.
-       // You may find this useless, or bad.  Submit a PR if it is!
-       app.insert_resource(FramepaceSettings {
-           limiter: Limiter::from_framerate(FPS as f64),
-       })
-       .add_plugins(FramepacePlugin);
+    app.add_plugins(FramepacePlugin)
+        .insert_resource(FramepaceSettings {
+            limiter: Limiter::from_framerate(FPS as f64),
+        });
     */
     app.run();
 }
