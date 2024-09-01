@@ -57,7 +57,7 @@
             # Magic from discord
             NIX_LD = "${clangStdenv.cc.libc_bin}/bin/ld.so";
 
-            RUST_BACKTRACE = 1;
+            RUST_BACKTRACE = 0;
 
             CARGO_BUILD_JOBS = 7;
             CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";

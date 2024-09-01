@@ -36,6 +36,8 @@ pub fn input(
 ) {
     let mut local_inputs = HashMap::new();
 
+    random.on = false;
+
     for handle in &local_players.0 {
         let mut input: u16 = 0;
 

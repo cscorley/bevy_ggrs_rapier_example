@@ -131,10 +131,9 @@ fn main() {
         .add_systems(bevy_ggrs::ReadInputs, input)
         // We must add a specific checksum check for everything we want to include in desync detection.
         // It is probably OK to just check the components, but for demo purposes let's make sure Rapier always agrees.
-        //.checksum_resource_with_hash::<PhysicsRollbackState>()
-        //.rollback_resource_with_clone::<PhysicsRollbackState>()
         // Store everything that Rapier updates in its Writeback stage
-        .checksum_component::<Transform>(|t| t.translation.x as u64)
+        .checksum_component::<Transform>(|t| fletcher16(&t.translation.x.to_ne_bytes()) as u64)
+        .rollback_resource_with_copy::<Checksum>()
         .rollback_component_with_copy::<GlobalTransform>()
         .rollback_component_with_copy::<Transform>()
         .rollback_component_with_copy::<LinearVelocity>()
@@ -235,7 +234,7 @@ fn main() {
     app.add_systems(
         bevy_ggrs::GgrsSchedule,
         (
-            pause_physics_test,
+            //            pause_physics_test,
             log_end_frame,
             apply_deferred, // Flushing again
         )
@@ -276,4 +275,15 @@ pub fn close_on_esc(
             commands.entity(window).despawn();
         }
     }
+}
+pub fn fletcher16(data: &[u8]) -> u16 {
+    let mut sum1: u16 = 0;
+    let mut sum2: u16 = 0;
+
+    for byte in data {
+        sum1 = (sum1 + *byte as u16) % 255;
+        sum2 = (sum2 + sum1) % 255;
+    }
+
+    (sum2 << 8) | sum1
 }

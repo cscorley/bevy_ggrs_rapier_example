@@ -21,14 +21,14 @@ pub fn log_confirmed_frame(confirmed_frame: Res<ConfirmedFrameCount>) {
     log::info!("confirmed frame: {}", confirmed_frame);
 }
 
-pub fn log_start_frame(current_frame: Res<RollbackFrameCount>) {
+pub fn log_start_frame(current_frame: Res<RollbackFrameCount>, checksum: Res<Checksum>) {
     let current_frame: i32 = (*current_frame).into();
-    log::info!("---- start frame {} ----", current_frame);
+    log::info!("---- start frame {} {} ----", current_frame, checksum.0);
 }
 
-pub fn log_end_frame(current_frame: Res<RollbackFrameCount>) {
+pub fn log_end_frame(current_frame: Res<RollbackFrameCount>, checksum: Res<Checksum>) {
     let current_frame: i32 = (*current_frame).into();
-    log::info!("----- end frame {} -----", current_frame);
+    log::info!("----- end frame {} {} -----", current_frame, checksum.0);
 }
 
 pub fn update_current_session_frame(

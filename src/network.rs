@@ -92,7 +92,8 @@ pub fn handle_p2p_events(session: Option<ResMut<Session<ExampleGgrsConfig>>>) {
                         remote_checksum,
                         addr,
                     } => {
-                        panic!(
+                        // TODO: restore panic
+                        error!(
                             "Desync detected on frame {} local {} remote {}@{:?}",
                             frame, local_checksum, remote_checksum, addr
                         );
