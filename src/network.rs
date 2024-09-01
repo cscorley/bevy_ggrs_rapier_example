@@ -77,7 +77,10 @@ pub fn update_matchbox_socket(
     commands.insert_resource(Session::P2P(session));
 }
 
-pub fn handle_p2p_events(session: Option<ResMut<Session<ExampleGgrsConfig>>>) {
+pub fn handle_p2p_events(
+    session: Option<ResMut<Session<ExampleGgrsConfig>>>,
+    mut gizmos: ResMut<GizmoConfigStore>,
+) {
     if let Some(mut session) = session {
         if let Session::P2P(session) = session.as_mut() {
             for event in session.events() {
@@ -92,6 +95,13 @@ pub fn handle_p2p_events(session: Option<ResMut<Session<ExampleGgrsConfig>>>) {
                         remote_checksum,
                         addr,
                     } => {
+                        gizmos.insert(
+                            GizmoConfig::default(),
+                            PhysicsGizmos {
+                                collider_color: Some(Color::linear_rgb(1., 0., 0.)),
+                                ..Default::default()
+                            },
+                        );
                         // TODO: restore panic
                         error!(
                             "Desync detected on frame {} local {} remote {}@{:?}",

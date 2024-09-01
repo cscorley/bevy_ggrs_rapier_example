@@ -174,8 +174,8 @@ fn main() {
         //.rollback_component_with_copy::<PreSolveLinearVelocity>() // pub(crate)
         //.rollback_component_with_copy::<PreviousColliderTransform>()
 
-        .rollback_resource_with_copy::<Time<Physics>>()
-        .rollback_resource_with_copy::<Time<Substeps>>()
+        //.rollback_resource_with_copy::<Time<Physics>>()
+        //.rollback_resource_with_copy::<Time<Substeps>>()
         .rollback_component_with_clone::<RayCaster>()
         .rollback_component_with_clone::<RayHits>()
         .rollback_component_with_clone::<Sensor>()
@@ -251,7 +251,9 @@ fn main() {
     );
 
     // We don't really draw anything ourselves, just show us the raw physics colliders
-    app.add_plugins(PhysicsDebugPlugin::default());
+    app.add_plugins(PhysicsDebugPlugin::default())
+        .insert_gizmo_config(PhysicsGizmos::default(), GizmoConfig::default());
+
     app.add_plugins(WorldInspectorPlugin::new());
 
     /*
