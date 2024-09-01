@@ -272,9 +272,6 @@ name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "as-raw-xcb-connection"
@@ -621,8 +618,8 @@ dependencies = [
  "indexmap 2.4.0",
  "itertools 0.13.0",
  "libm",
- "nalgebra 0.32.6",
- "parry2d 0.15.1",
+ "nalgebra",
+ "parry2d",
  "parry2d-f64",
 ]
 
@@ -878,7 +875,6 @@ dependencies = [
  "bevy_reflect",
  "bevy_tasks",
  "bevy_utils",
- "serde",
  "uuid",
 ]
 
@@ -1043,14 +1039,11 @@ dependencies = [
  "bevy_ggrs",
  "bevy_matchbox",
  "bevy_math",
- "bevy_rapier2d",
- "bincode",
  "bytemuck",
  "console_error_panic_hook",
  "ggrs",
  "log",
  "rand",
- "serde",
  "tracing-log 0.1.4",
  "tracing-subscriber",
  "tracing-wasm",
@@ -1162,7 +1155,6 @@ dependencies = [
  "bevy_math",
  "bevy_reflect",
  "bevy_utils",
- "serde",
  "smol_str",
  "thiserror",
 ]
@@ -1302,19 +1294,6 @@ name = "bevy_ptr"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ed72afbb6249a6803a3ed7bd2f68ff080d9392f550475e050b34c1e1c1e3e8f"
-
-[[package]]
-name = "bevy_rapier2d"
-version = "0.27.0"
-source = "git+https://github.com/cscorley/bevy_rapier?branch=more-deterministic-context-0.14#8e476429c9ea5d6a43bd7582e7909390fd39671c"
-dependencies = [
- "bevy",
- "bitflags 2.6.0",
- "log",
- "nalgebra 0.33.0",
- "rapier2d",
- "serde",
-]
 
 [[package]]
 name = "bevy_reflect"
@@ -1528,7 +1507,6 @@ dependencies = [
  "bevy_reflect",
  "bevy_utils",
  "crossbeam-channel",
- "serde",
  "thiserror",
 ]
 
@@ -1543,7 +1521,6 @@ dependencies = [
  "bevy_hierarchy",
  "bevy_math",
  "bevy_reflect",
- "serde",
  "thiserror",
 ]
 
@@ -1572,7 +1549,6 @@ dependencies = [
  "bevy_window",
  "bytemuck",
  "nonmax",
- "serde",
  "smallvec",
  "taffy",
  "thiserror",
@@ -1617,7 +1593,6 @@ dependencies = [
  "bevy_reflect",
  "bevy_utils",
  "raw-window-handle",
- "serde",
  "smol_str",
 ]
 
@@ -1644,7 +1619,6 @@ dependencies = [
  "cfg-if",
  "crossbeam-channel",
  "raw-window-handle",
- "serde",
  "wasm-bindgen",
  "web-sys",
  "winit",
@@ -1674,7 +1648,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash 1.1.0",
+ "rustc-hash",
  "shlex",
  "syn 2.0.76",
 ]
@@ -1685,7 +1659,7 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0700ddab506f33b20a03b13996eccd309a48e5ff77d0d95926aa0210fb4e95f1"
 dependencies = [
- "bit-vec 0.6.3",
+ "bit-vec",
 ]
 
 [[package]]
@@ -1693,15 +1667,6 @@ name = "bit-vec"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
-
-[[package]]
-name = "bit-vec"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2c54ff287cfc0a34f38a6b832ea1bd8e448a330b3e40a50859e6488bee07f22"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "bitfield-rle"
@@ -1795,9 +1760,9 @@ checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "bytemuck"
-version = "1.17.0"
+version = "1.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fd4c6dcc3b0aea2f5c0b4b82c2b15fe39ddbc76041a310848f4706edf76bb31"
+checksum = "773d90827bc3feecfb67fab12e24de0749aad83c74b9504ecde46237b5cd24e2"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -2200,19 +2165,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crossbeam"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
-dependencies = [
- "crossbeam-channel",
- "crossbeam-deque",
- "crossbeam-epoch",
- "crossbeam-queue",
- "crossbeam-utils",
-]
-
-[[package]]
 name = "crossbeam-channel"
 version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2236,15 +2188,6 @@ name = "crossbeam-epoch"
 version = "0.9.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
-dependencies = [
- "crossbeam-utils",
-]
-
-[[package]]
-name = "crossbeam-queue"
-version = "0.3.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df0346b5d5e76ac2fe4e327c5fd1118d6be7c51dfb18f9b7922923f287471e35"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -3359,7 +3302,6 @@ checksum = "93ead53efc7ea8ed3cfb0c79fc8023fbb782a5432b52830b6518941cebe6505c"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.5",
- "serde",
 ]
 
 [[package]]
@@ -3858,7 +3800,7 @@ dependencies = [
  "log",
  "num-traits",
  "pp-rs",
- "rustc-hash 1.1.0",
+ "rustc-hash",
  "spirv",
  "termcolor",
  "thiserror",
@@ -3879,7 +3821,7 @@ dependencies = [
  "once_cell",
  "regex",
  "regex-syntax 0.8.4",
- "rustc-hash 1.1.0",
+ "rustc-hash",
  "thiserror",
  "tracing",
  "unicode-ident",
@@ -3898,25 +3840,7 @@ dependencies = [
  "num-complex",
  "num-rational",
  "num-traits",
- "simba 0.8.1",
- "typenum",
-]
-
-[[package]]
-name = "nalgebra"
-version = "0.33.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c4b5f057b303842cf3262c27e465f4c303572e7f6b0648f60e16248ac3397f4"
-dependencies = [
- "approx",
- "glam",
- "matrixmultiply",
- "nalgebra-macros",
- "num-complex",
- "num-rational",
- "num-traits",
- "serde",
- "simba 0.9.0",
+ "simba",
  "typenum",
 ]
 
@@ -4067,7 +3991,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
 dependencies = [
  "num-traits",
- "serde",
 ]
 
 [[package]]
@@ -4102,7 +4025,6 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824"
 dependencies = [
- "num-bigint",
  "num-integer",
  "num-traits",
 ]
@@ -4422,15 +4344,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ordered-float"
-version = "4.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a91171844676f8c7990ce64959210cd2eaef32c2612c50f9fae9f8aaa6065a6"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4511,41 +4424,15 @@ dependencies = [
  "either",
  "indexmap 1.9.3",
  "log",
- "nalgebra 0.32.6",
+ "nalgebra",
  "num-derive",
  "num-traits",
  "rayon",
- "rustc-hash 1.1.0",
- "simba 0.8.1",
+ "rustc-hash",
+ "simba",
  "slab",
  "smallvec",
  "spade",
-]
-
-[[package]]
-name = "parry2d"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f9dedc688fd089d8f48a4f3ef704b5ba6945288ee8c9b511b130d8dcb84e4ee"
-dependencies = [
- "approx",
- "arrayvec",
- "bitflags 2.6.0",
- "downcast-rs",
- "either",
- "indexmap 2.4.0",
- "log",
- "nalgebra 0.33.0",
- "num-derive",
- "num-traits",
- "ordered-float",
- "rustc-hash 2.0.0",
- "serde",
- "simba 0.9.0",
- "slab",
- "smallvec",
- "spade",
- "thiserror",
 ]
 
 [[package]]
@@ -4561,12 +4448,12 @@ dependencies = [
  "either",
  "indexmap 1.9.3",
  "log",
- "nalgebra 0.32.6",
+ "nalgebra",
  "num-derive",
  "num-traits",
  "rayon",
- "rustc-hash 1.1.0",
- "simba 0.8.1",
+ "rustc-hash",
+ "simba",
  "slab",
  "smallvec",
  "spade",
@@ -4876,30 +4763,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8a99fddc9f0ba0a85884b8d14e3592853e787d581ca1816c91349b10e4eeab"
 
 [[package]]
-name = "rapier2d"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "643116992c25c96a07e1aae7d59fba207f01979dc9a107c42bcd4c4b83ef78b2"
-dependencies = [
- "approx",
- "arrayvec",
- "bit-vec 0.7.0",
- "bitflags 2.6.0",
- "crossbeam",
- "downcast-rs",
- "log",
- "nalgebra 0.33.0",
- "num-derive",
- "num-traits",
- "ordered-float",
- "parry2d 0.17.0",
- "rustc-hash 2.0.0",
- "serde",
- "simba 0.9.0",
- "thiserror",
-]
-
-[[package]]
 name = "raw-window-handle"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5109,12 +4972,6 @@ name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
-
-[[package]]
-name = "rustc-hash"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "583034fd73374156e66797ed8e5b0d5690409c9226b22d87cb7f19821c05d152"
 
 [[package]]
 name = "rustc_version"
@@ -5447,20 +5304,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "simba"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3a386a501cd104797982c15ae17aafe8b9261315b5d07e3ec803f2ea26be0fa"
-dependencies = [
- "approx",
- "libm",
- "num-complex",
- "num-traits",
- "paste",
- "wide",
-]
-
-[[package]]
 name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5489,9 +5332,6 @@ name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "smithay-client-toolkit"
@@ -6681,7 +6521,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d50819ab545b867d8a454d1d756b90cd5f15da1f2943334ca314af10583c9d39"
 dependencies = [
  "arrayvec",
- "bit-vec 0.6.3",
+ "bit-vec",
  "bitflags 2.6.0",
  "cfg_aliases 0.1.1",
  "codespan-reporting",
@@ -6693,7 +6533,7 @@ dependencies = [
  "parking_lot",
  "profiling",
  "raw-window-handle",
- "rustc-hash 1.1.0",
+ "rustc-hash",
  "smallvec",
  "thiserror",
  "web-sys",
@@ -6737,7 +6577,7 @@ dependencies = [
  "range-alloc",
  "raw-window-handle",
  "renderdoc-sys",
- "rustc-hash 1.1.0",
+ "rustc-hash",
  "smallvec",
  "thiserror",
  "wasm-bindgen",

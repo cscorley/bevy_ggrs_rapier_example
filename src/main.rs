@@ -137,9 +137,67 @@ fn main() {
         //.checksum_component::<Transform>(|t| t.translation.x as u64)
         .rollback_component_with_copy::<GlobalTransform>()
         .rollback_component_with_copy::<Transform>()
+        .rollback_resource_with_copy::<Time<Physics>>()
+        .rollback_resource_with_copy::<Time<Substeps>>()
+        .rollback_resource_with_copy::<SubstepCount>()
+        .rollback_resource_with_reflect::<BroadCollisionPairs>()
+        .rollback_component_with_clone::<broad_phase::AabbIntersections>()
+        .rollback_resource_with_copy::<SleepingThreshold>()
+        .rollback_resource_with_copy::<DeactivationTime>()
+        .rollback_resource_with_reflect::<Gravity>()
+        .rollback_component_with_copy::<RigidBody>()
+        .rollback_component_with_copy::<Sleeping>()
+        .rollback_component_with_copy::<SleepingDisabled>()
+        .rollback_component_with_copy::<TimeSleeping>()
+        .rollback_component_with_copy::<Position>()
+        .rollback_component_with_copy::<Rotation>()
+        .rollback_component_with_copy::<avian2d::position::PreSolveAccumulatedTranslation>()
+        .rollback_component_with_copy::<avian2d::position::PreviousRotation>()
+        .rollback_component_with_copy::<avian2d::sync::PreviousGlobalTransform>()
+        .rollback_component_with_copy::<AccumulatedTranslation>()
         .rollback_component_with_copy::<LinearVelocity>()
         .rollback_component_with_copy::<AngularVelocity>()
-        .rollback_component_with_copy::<Sleeping>()
+        //.rollback_component_with_copy::<PreSolveLinearVelocity>()
+        //.rollback_component_with_copy::<PreSolveAngularVelocity>()
+        .rollback_component_with_copy::<Restitution>()
+        .rollback_component_with_copy::<Friction>()
+        .rollback_component_with_copy::<LinearDamping>()
+        .rollback_component_with_copy::<AngularDamping>()
+        .rollback_component_with_copy::<ExternalForce>()
+        .rollback_component_with_copy::<ExternalTorque>()
+        .rollback_component_with_copy::<ExternalImpulse>()
+        .rollback_component_with_copy::<ExternalAngularImpulse>()
+        .rollback_component_with_copy::<GravityScale>()
+        .rollback_component_with_copy::<Mass>()
+        .rollback_component_with_copy::<InverseMass>()
+        .rollback_component_with_copy::<Inertia>()
+        .rollback_component_with_copy::<InverseInertia>()
+        .rollback_component_with_copy::<CenterOfMass>()
+        .rollback_component_with_copy::<ColliderDensity>()
+        .rollback_component_with_copy::<ColliderMassProperties>()
+        .rollback_component_with_copy::<LockedAxes>()
+        .rollback_component_with_copy::<ColliderParent>()
+        .rollback_component_with_copy::<Dominance>()
+        .rollback_component_with_copy::<ColliderAabb>()
+        .rollback_component_with_copy::<CollisionLayers>()
+        .rollback_component_with_clone::<CollidingEntities>()
+        //.rollback_component_with_copy::<CoefficientCombine>()
+        .rollback_component_with_clone::<Sensor>()
+        .rollback_component_with_copy::<ColliderTransform>()
+        //.rollback_component_with_copy::<PreviousColliderTransform>()
+        .rollback_component_with_copy::<SpeculativeMargin>()
+        .rollback_component_with_copy::<SweptCcd>()
+        .rollback_component_with_copy::<CollisionMargin>()
+        .rollback_resource_with_clone::<NarrowPhaseConfig>()
+        //.rollback_resource_with_clone::<SolverConfig>()
+        //.rollback_resource_with_clone::<SyncConfig>()
+        .rollback_component_with_copy::<avian2d::sync::ancestor_marker::AncestorMarker<RigidBody>>()
+        .rollback_component_with_copy::<avian2d::sync::ancestor_marker::AncestorMarker<ColliderMarker>>()
+        .rollback_component_with_clone::<RayCaster>()
+        .rollback_component_with_copy::<DistanceJoint>()
+        .rollback_component_with_copy::<FixedJoint>()
+        .rollback_component_with_copy::<PrismaticJoint>()
+        .rollback_component_with_copy::<RevoluteJoint>()
         // Game stuff
         .rollback_resource_with_reflect::<EnablePhysicsAfter>();
 
@@ -186,44 +244,22 @@ fn main() {
             .after(PhysicsSet::Sync),
     );
 
-    /*
-       // Make sure to insert a new configuration with fixed timestep mode after configuring the plugin
-       let mut rapier_config = RapierConfiguration::new(1.);
-       // The timestep_mode MUST be fixed
-       rapier_config.timestep_mode = TimestepMode::Fixed {
-           dt: 1. / FPS as f32,
-           substeps: 1,
-       };
-       // This should work with gravity, too.  It is fun for testing.
-       // rapier_config.gravity = Vec2::ZERO;
-
-       // Turn off query pipeline since this example does not use it
-       rapier_config.query_pipeline_active = false;
-
-       // Turn off query pipeline since this example does not use it
-       rapier_config.physics_pipeline_active = false;
-
-       // Do not check internal structures for transform changes
-       rapier_config.force_update_from_transform_changes = true;
-
-       app.insert_resource(rapier_config);
-    */
-
     // We don't really draw anything ourselves, just show us the raw physics colliders
-    app.add_plugins(PhysicsDebugPlugin::default())
-        .add_plugins(WorldInspectorPlugin::new());
+    app.add_plugins(PhysicsDebugPlugin::default());
+    app.add_plugins(WorldInspectorPlugin::new());
 
-    // I have found that since GGRS is limiting the movement FPS anyway,
-    // there isn't much of a point in rendering more frames than necessary.
-    // One thing I've yet to prove out is if this is actually detrimental or
-    // not to resimulation, since we're basically taking up time that GGRS
-    // would use already to pace itself.
-    // You may find this useless, or bad.  Submit a PR if it is!
-    app.insert_resource(FramepaceSettings {
-        limiter: Limiter::from_framerate(FPS as f64),
-    })
-    .add_plugins(FramepacePlugin);
-
+    /*
+       // I have found that since GGRS is limiting the movement FPS anyway,
+       // there isn't much of a point in rendering more frames than necessary.
+       // One thing I've yet to prove out is if this is actually detrimental or
+       // not to resimulation, since we're basically taking up time that GGRS
+       // would use already to pace itself.
+       // You may find this useless, or bad.  Submit a PR if it is!
+       app.insert_resource(FramepaceSettings {
+           limiter: Limiter::from_framerate(FPS as f64),
+       })
+       .add_plugins(FramepacePlugin);
+    */
     app.run();
 }
 
