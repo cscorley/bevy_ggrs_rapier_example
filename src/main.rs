@@ -184,7 +184,7 @@ fn main() {
         //.rollback_component_with_clone::<Sensor>()
         //.rollback_component_with_clone::<ShapeCaster>()
         //.rollback_component_with_clone::<ShapeHits>()
-        //.rollback_component_with_clone::<broad_phase::AabbIntersections>()
+        .rollback_component_with_clone::<broad_phase::AabbIntersections>()
         //.rollback_component_with_copy::<AngularDamping>()
         //.rollback_component_with_copy::<CollisionLayers>()
         //.rollback_component_with_copy::<CollisionMargin>()
