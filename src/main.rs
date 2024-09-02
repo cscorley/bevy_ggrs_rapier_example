@@ -212,17 +212,13 @@ fn main() {
         // Game stuff
         .rollback_resource_with_reflect::<EnablePhysicsAfter>();
 
-    // We need to a bunch of systems into the GGRSSchedule.
-    // So, grab it and lets configure it with our systems, and the one from Rapier.
+    // We need to add a bunch of systems into the GGRSSchedule.
+    // Remove ambiguity detection, avian is in conflict with the GGRS default
     app.get_schedule_mut(bevy_ggrs::GgrsSchedule)
         .unwrap() // We just configured the plugin -- this is probably fine
-        // remove ambiguity detection, which doesn't work with Rapier https://github.com/dimforge/bevy_rapier/issues/356#issuecomment-1587045134
         .set_build_settings(ScheduleBuildSettings::default());
 
-    // Configure plugin without system setup, otherwise your simulation will run twice
     app.add_plugins(PhysicsPlugins::new(bevy_ggrs::GgrsSchedule));
-    //app.insert_resource(Time::<Fixed>::from_hz(FPS as f64));
-
     app.add_systems(
         bevy_ggrs::GgrsSchedule,
         (
@@ -233,7 +229,7 @@ fn main() {
             // the three above must actually come before we update rollback status
             update_rollback_status,
             // these three must actually come after we update rollback status
-            //force_update_rollbackables,
+            force_update_rollbackables,
             toggle_physics,
             apply_inputs,
             apply_deferred,
@@ -309,4 +305,28 @@ pub fn copy_time(ggrs_time: Res<Time<GgrsTime>>, mut physics_time: ResMut<Time<P
 
     log::info!("ggrs time {:?}", ggrs_time);
     log::info!("phys time {:?}", physics_time);
+}
+
+pub fn force_update_rollbackables(
+    mut av_query: Query<&mut AngularVelocity, With<Rollback>>,
+    mut lv_query: Query<&mut LinearVelocity, With<Rollback>>,
+    mut p_query: Query<&mut Position, With<Rollback>>,
+    mut r_query: Query<&mut Rotation, With<Rollback>>,
+    mut ce_query: Query<&mut CollidingEntities, With<Rollback>>,
+) {
+    for mut c in av_query.iter_mut() {
+        c.set_changed();
+    }
+    for mut c in lv_query.iter_mut() {
+        c.set_changed();
+    }
+    for mut c in p_query.iter_mut() {
+        c.set_changed();
+    }
+    for mut c in r_query.iter_mut() {
+        c.set_changed();
+    }
+    for mut c in ce_query.iter_mut() {
+        c.set_changed();
+    }
 }
