@@ -34,21 +34,24 @@ web = ["bevy_ggrs/wasm-bindgen", "ggrs/wasm-bindgen"]
 
 [dependencies]
 # Prefer listing the exact bevy and bevy-adjacent versions here for clarity of what worked
-bevy = "0.14.1"
+bevy = "0.14.2"
 # Enable libm in glam dependency for https://github.com/cscorley/bevy_ggrs_rapier_example/issues/22
-bevy_math = { version = "0.14.1", features = ["libm"] } 
+bevy_math = { version = "0.14.2", features = ["libm"] }
 bevy-inspector-egui = "0.25.2"
 bevy_framepace = "0.17.1"
 bevy_ggrs = "0.16.0"
 bevy_matchbox = { version = "0.10.0", features = ["ggrs"] }
-bincode = "1.3"
-bytemuck = { version = "1.17", features = ["derive"] }
+bincode = "1.3.3"
+bytemuck = { version = "1.18.0", features = ["derive"] }
 ggrs = { version = "0.10.2", features = ["sync-send"] }
-log = "0.4"
+log = "0.4.22"
 rand = "0.8.5"
-serde = { version = "1.0.209", features = ["serde_derive"] }
-tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
-tracing-log = "0.1"
+serde = { version = "1.0.210", features = ["serde_derive"] }
+tracing-subscriber = { version = "0.3.18", features = [
+    "registry",
+    "env-filter",
+] }
+tracing-log = "0.2.0"
 
 # This branch must be used until dimforge/bevy_rapier PRs #233 is merged
 # bevy_rapier2d = { version = "0.22.0", features = [
@@ -60,5 +63,5 @@ bevy_rapier2d = { git = "https://github.com/cscorley/bevy_rapier", branch = "mor
 
 # Add our web-only dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1"
-tracing-wasm = "0.2"
+console_error_panic_hook = "0.1.7"
+tracing-wasm = "0.2.1"
