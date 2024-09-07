@@ -130,16 +130,18 @@ pub fn apply_inputs(
             0.
         };
 
+        // For some reason, if you wanted to zero out a velocity and it happens
+        // that the two players are in contact, it will cause a desync in Avian
         let new_vel_x = if horizontal != 0. {
             v.x + horizontal * 10.0
         } else {
-            0.
+            v.x
         };
 
         let new_vel_y = if vertical != 0. {
             v.y + vertical * 10.0
         } else {
-            0.
+            v.y
         };
 
         // This is annoying but we have to make sure we only trigger an update in Rapier when explicitly necessary!
